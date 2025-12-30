@@ -15,6 +15,24 @@ class MapCanvasWidget extends StatefulWidget {
     required this.selectedCharacter,
   });
 
+  // Static helper to get current country name
+  static String getCurrentCountry(double distance) {
+    double cumulativeDistance = 0.0;
+
+    for (int i = 0; i < kBiomes.length; i++) {
+      final biome = kBiomes[i];
+      final biomeEnd = cumulativeDistance + biome.distanceKm;
+
+      if (distance < biomeEnd || i == kBiomes.length - 1) {
+        return biome.name;
+      }
+
+      cumulativeDistance = biomeEnd;
+    }
+
+    return kBiomes[0].name; // Fallback
+  }
+
   @override
   State<MapCanvasWidget> createState() => _MapCanvasWidgetState();
 }
@@ -41,6 +59,7 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
   double _animatedDistance = 0.0;
   double _walkCycle = 0.0;
   double _viewOffset = 0.0; // New state for interactive review
+  int _currentBiomeIndex = 0;
 
   @override
   void initState() {
@@ -57,49 +76,136 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
   }
 
   void _initializeScene() {
-    // Raising horizons so text at bottom has a clean black background
-    _terrainFrom = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.55, // Raised significantly
-      roughness: 1.1,
-      seed: 101,
+    _generateTerrainForBiome(0);
+
+    // Also generate the target biome terrain for smooth transitions
+    final targetBiome = kBiomes[1 % kBiomes.length];
+    _terrainTo = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.55,
+      roughness: targetBiome.roughness,
+      seed: targetBiome.seed,
       segments: 400,
       octaves: 5,
     );
-    _terrainTo = _terrainFrom;
-
-    _nearHillsFrom = TerrainEngine.generateTerrain(
+    _nearHillsTo = TerrainEngine.generateTerrain(
       baseY: TerrainEngine.kWorldHeight * 0.45,
-      roughness: 0.9,
-      seed: 106,
+      roughness: targetBiome.roughness * 0.85,
+      seed: targetBiome.seed + 5,
       segments: 300,
       octaves: 4,
     );
-    _nearHillsTo = _nearHillsFrom;
-
-    _midHillsFrom = TerrainEngine.generateTerrain(
+    _midHillsTo = TerrainEngine.generateTerrain(
       baseY: TerrainEngine.kWorldHeight * 0.42,
-      roughness: 0.7,
-      seed: 111,
+      roughness: targetBiome.roughness * 0.65,
+      seed: targetBiome.seed + 10,
       segments: 200,
       octaves: 4,
     );
-    _midHillsTo = _midHillsFrom;
-
-    _farMountainsFrom = TerrainEngine.generateTerrain(
+    _farMountainsTo = TerrainEngine.generateTerrain(
       baseY: TerrainEngine.kWorldHeight * 0.35,
-      roughness: 0.6,
-      seed: 121,
+      roughness: targetBiome.roughness * 0.5,
+      seed: targetBiome.seed + 20,
       segments: 300,
       octaves: 5,
     );
-    _farMountainsTo = _farMountainsFrom;
+    _rocksTo = generateRocks(targetBiome.seed, 150);
+    _foliageTo = generateFoliage(targetBiome.seed, targetBiome.foliageDensity);
+  }
 
-    // Generate props for the entire world once
-    _rocksFrom = generateRocks(101, 150);
-    _rocksTo = _rocksFrom;
+  void _generateTerrainForBiome(int biomeIndex) {
+    final biome = kBiomes[biomeIndex % kBiomes.length];
 
-    _foliageFrom = generateFoliage(101, 1.0);
-    _foliageTo = _foliageFrom;
+    // Generate terrain based on biome-specific parameters
+    _terrainFrom = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.55,
+      roughness: biome.roughness,
+      seed: biome.seed,
+      segments: 400,
+      octaves: 5,
+    );
+
+    _nearHillsFrom = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.45,
+      roughness: biome.roughness * 0.85,
+      seed: biome.seed + 5,
+      segments: 300,
+      octaves: 4,
+    );
+
+    _midHillsFrom = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.42,
+      roughness: biome.roughness * 0.65,
+      seed: biome.seed + 10,
+      segments: 200,
+      octaves: 4,
+    );
+
+    _farMountainsFrom = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.35,
+      roughness: biome.roughness * 0.5,
+      seed: biome.seed + 20,
+      segments: 300,
+      octaves: 5,
+    );
+
+    _rocksFrom = generateRocks(biome.seed, 150);
+    _foliageFrom = generateFoliage(biome.seed, biome.foliageDensity);
+  }
+
+  void _updateBiomeTransition(int newCurrentBiome, int newTargetBiome) {
+    if (newCurrentBiome != _currentBiomeIndex) {
+      // Biome changed - update terrain
+      _currentBiomeIndex = newCurrentBiome;
+
+      // Current biome's terrain becomes the "from" terrain
+      _terrainFrom = _terrainTo;
+      _nearHillsFrom = _nearHillsTo;
+      _midHillsFrom = _midHillsTo;
+      _farMountainsFrom = _farMountainsTo;
+      _rocksFrom = _rocksTo;
+      _foliageFrom = _foliageTo;
+
+      // Generate new "to" terrain for target biome
+      final targetBiome = kBiomes[newTargetBiome % kBiomes.length];
+
+      _terrainTo = TerrainEngine.generateTerrain(
+        baseY: TerrainEngine.kWorldHeight * 0.55,
+        roughness: targetBiome.roughness,
+        seed: targetBiome.seed,
+        segments: 400,
+        octaves: 5,
+      );
+
+      _nearHillsTo = TerrainEngine.generateTerrain(
+        baseY: TerrainEngine.kWorldHeight * 0.45,
+        roughness: targetBiome.roughness * 0.85,
+        seed: targetBiome.seed + 5,
+        segments: 300,
+        octaves: 4,
+      );
+
+      _midHillsTo = TerrainEngine.generateTerrain(
+        baseY: TerrainEngine.kWorldHeight * 0.42,
+        roughness: targetBiome.roughness * 0.65,
+        seed: targetBiome.seed + 10,
+        segments: 200,
+        octaves: 4,
+      );
+
+      _farMountainsTo = TerrainEngine.generateTerrain(
+        baseY: TerrainEngine.kWorldHeight * 0.35,
+        roughness: targetBiome.roughness * 0.5,
+        seed: targetBiome.seed + 20,
+        segments: 300,
+        octaves: 5,
+      );
+
+      _rocksTo = generateRocks(targetBiome.seed, 150);
+      _foliageTo = generateFoliage(
+        targetBiome.seed,
+        targetBiome.foliageDensity,
+      );
+    }
   }
 
   void _tick() {
@@ -111,7 +217,49 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
       _animatedDistance = widget.distanceTraveled;
       _walkCycle += 0.02;
     }
+
+    // Check for biome transitions using cumulative distances
+    final biomeInfo = _getBiomeAtDistance(_animatedDistance);
+    _updateBiomeTransition(biomeInfo.currentIndex, biomeInfo.targetIndex);
+
     setState(() {});
+  }
+
+  // Helper to determine which biome we're in based on distance traveled
+  ({int currentIndex, int targetIndex, double transitionT}) _getBiomeAtDistance(
+    double distance,
+  ) {
+    double cumulativeDistance = 0.0;
+
+    for (int i = 0; i < kBiomes.length; i++) {
+      final biome = kBiomes[i];
+      final biomeEnd = cumulativeDistance + biome.distanceKm;
+
+      if (distance < biomeEnd || i == kBiomes.length - 1) {
+        // We're in this biome
+        final localDistance = distance - cumulativeDistance;
+        final transitionStart =
+            biome.distanceKm - 50.0; // Last 50km for transition
+
+        double transitionT = 0.0;
+        if (localDistance > transitionStart && biome.distanceKm > 0) {
+          transitionT = (localDistance - transitionStart) / 50.0;
+          transitionT = transitionT.clamp(0.0, 1.0);
+        }
+
+        final targetIndex = (i + 1) % kBiomes.length;
+        return (
+          currentIndex: i,
+          targetIndex: targetIndex,
+          transitionT: transitionT,
+        );
+      }
+
+      cumulativeDistance = biomeEnd;
+    }
+
+    // Fallback (shouldn't reach here)
+    return (currentIndex: 0, targetIndex: 1, transitionT: 0.0);
   }
 
   @override
@@ -127,21 +275,11 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
       double.infinity,
     );
 
-    // Biome Logic: Biomes are 1000m apart.
-    // Transition over the last 300m of each biome segment.
-    const double biomeWidth = 1000.0;
-    const double transitionWidth = 300.0;
-
-    final pos = visualDistance / biomeWidth;
-    final currentBiomeIndex = pos.floor() % kBiomes.length;
-    final targetBiomeIndex = (currentBiomeIndex + 1) % kBiomes.length;
-    final localDist = visualDistance % biomeWidth;
-
-    double biomeTransitionT = 0.0;
-    if (localDist > (biomeWidth - transitionWidth)) {
-      biomeTransitionT =
-          (localDist - (biomeWidth - transitionWidth)) / transitionWidth;
-    }
+    // Get biome information based on actual distances
+    final biomeInfo = _getBiomeAtDistance(visualDistance);
+    final currentBiomeIndex = biomeInfo.currentIndex;
+    final targetBiomeIndex = biomeInfo.targetIndex;
+    final biomeTransitionT = biomeInfo.transitionT;
 
     return GestureDetector(
       onHorizontalDragUpdate: (details) {

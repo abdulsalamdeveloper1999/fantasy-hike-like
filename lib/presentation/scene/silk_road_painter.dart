@@ -156,6 +156,16 @@ class SilkRoadMapPainter extends CustomPainter {
           _drawForegroundStrip(canvas, size, groundPts, Colors.black, scaleY),
     );
 
+    // 4.5. Foliage (trees and bushes)
+    _drawTiledLayer(
+      canvas,
+      size,
+      totalCamX,
+      1.0, // foreground factor (same as terrain)
+      (offset) =>
+          _drawFoliageStrip(canvas, size, groundPts, scaleY, biomeTransitionT),
+    );
+
     // 5. Character
     // Map character's world position to the current tile
     final charWorldX = distanceTraveled * kVisualScale;
@@ -388,6 +398,87 @@ class SilkRoadMapPainter extends CustomPainter {
       ..lineTo(TerrainEngine.kWorldWidth, size.height)
       ..close();
     canvas.drawPath(path, Paint()..color = color);
+  }
+
+  void _drawFoliageStrip(
+    Canvas canvas,
+    Size size,
+    List<Offset> terrain,
+    double scaleY,
+    double biomeTransitionT,
+  ) {
+    // Blend foliage between current and target biome
+    final foliageList = <Foliage>[];
+
+    // Mix foliage from both biomes during transition
+    for (var f in foliageFrom) {
+      if (biomeTransitionT < 0.5) {
+        foliageList.add(f);
+      }
+    }
+    for (var f in foliageTo) {
+      if (biomeTransitionT > 0.5) {
+        foliageList.add(f);
+      }
+    }
+
+    // Draw each foliage item
+    for (var foliage in foliageList) {
+      final x = foliage.x;
+      final groundY = TerrainEngine.getGroundVisualY(terrain, x, scaleY);
+
+      // Foliage color - dark green/black
+      final foliageColor = Color.lerp(
+        const Color(0xFF1A3A1A), // Dark green
+        Colors.black,
+        0.5,
+      )!;
+
+      final paint = Paint()
+        ..color = foliageColor
+        ..style = PaintingStyle.fill;
+
+      if (foliage.type == 0) {
+        // Plant/Shrub - rounded bush shape
+        final height = 12.0 * foliage.scale;
+        final width = 10.0 * foliage.scale;
+
+        // Draw as overlapping circles for a bushy look
+        final plantPaint = Paint()
+          ..color = foliageColor
+          ..style = PaintingStyle.fill;
+
+        // Main bush body
+        canvas.drawCircle(
+          Offset(x, groundY - height / 2),
+          width / 2,
+          plantPaint,
+        );
+
+        // Additional circles for fuller look
+        canvas.drawCircle(
+          Offset(x - width / 3, groundY - height / 3),
+          width / 3,
+          plantPaint,
+        );
+        canvas.drawCircle(
+          Offset(x + width / 3, groundY - height / 3),
+          width / 3,
+          plantPaint,
+        );
+      } else if (foliage.type == 1) {
+        // Bush - simple circle
+        final radius = 4.0 * foliage.scale;
+        canvas.drawCircle(Offset(x, groundY - radius), radius, paint);
+      } else {
+        // Grass - small vertical line
+        canvas.drawLine(
+          Offset(x, groundY),
+          Offset(x, groundY - 3.0 * foliage.scale),
+          paint..strokeWidth = 1,
+        );
+      }
+    }
   }
 
   void _drawAnimatedCharacter(

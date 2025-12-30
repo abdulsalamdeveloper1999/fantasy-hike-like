@@ -47,6 +47,7 @@ class Biome {
   final int seed;
   final LandmarkType landmark;
   final double foliageDensity;
+  final double distanceKm; // Distance in kilometers for this country segment
 
   const Biome({
     required this.name,
@@ -55,6 +56,7 @@ class Biome {
     required this.seed,
     required this.landmark,
     this.foliageDensity = 0.5,
+    required this.distanceKm,
   });
 }
 
@@ -62,103 +64,114 @@ final List<Biome> kBiomes = [
   Biome(
     name: 'Mongolia 🇲🇳',
     colors: const BiomeColors(
-      skyTop: Color(0xFF5BA3D0),
-      skyMiddle: Color(0xFF8BBFD9),
-      skyBottom: Color(0xFFE8C5A0),
-      farMountains: Color(0xFFA5D8E8),
-      midHills: Color(0xFF6E9EB4),
-      nearHills: Color(0xFF385E70),
+      skyTop: Color(0xFF87CEEB), // Clear blue sky
+      skyMiddle: Color(0xFFB0E0E6), // Powder blue
+      skyBottom: Color(0xFFF0E68C), // Pale yellow horizon
+      farMountains: Color(0xFFD4E8D4), // Pale green mountains
+      midHills: Color(0xFFA8C896), // Muted green
+      nearHills: Color(0xFF8FBC8F), // Green steppes
       foreground: Colors.black,
       rocks: const Color(0xFF050505),
     ),
-    roughness: 1.2,
+    roughness: 0.3, // Very flat
     seed: 101,
     landmark: LandmarkType.yurt,
     foliageDensity: 0.2,
+    distanceKm: 1800.0,
   ),
   Biome(
     name: 'Xinjiang 🇨🇳',
     colors: const BiomeColors(
-      skyTop: Color(0xFF7FD6FF),
-      skyMiddle: Color(0xFFC7F0FF),
-      skyBottom: Color(0xFFF1D7A8),
-      farMountains: Color(0xFFD7C4A3),
-      midHills: Color(0xFFB59368),
-      nearHills: Color(0xFF8A6B4E),
+      skyTop: Color(0xFF87CEEB), // Desert sky
+      skyMiddle: Color(0xFFB8D4E8), // Light blue
+      skyBottom: Color(0xFFE8C896), // Sand gold horizon
+      farMountains: Color(0xFFD4A86C), // Sand gold
+      midHills: Color(0xFFB8784C), // Burnt clay
+      nearHills: Color(0xFF9A5F3C), // Deep burnt clay
       foreground: Colors.black,
       rocks: const Color(0xFF050505),
     ),
-    roughness: 1.0,
+    roughness: 0.6, // Low hills
     seed: 111,
     landmark: LandmarkType.pagoda,
     foliageDensity: 0.4,
+    distanceKm: 1200.0,
   ),
   Biome(
     name: 'Kazakhstan 🇰🇿',
     colors: const BiomeColors(
-      skyTop: Color(0xFF84CCFF),
-      skyMiddle: Color(0xFFB9E8FF),
-      skyBottom: Color(0xFFEADFC0),
-      farMountains: Color(0xFFC4D5DB),
-      midHills: Color(0xFF8BA5AD),
-      nearHills: Color(0xFF4E6B75),
+      skyTop: Color(0xFF87CEEB), // Clear sky
+      skyMiddle: Color(0xFFB0C8D8), // Soft blue
+      skyBottom: Color(0xFFE8D8A8), // Straw horizon
+      farMountains: Color(0xFFC8C896), // Pale straw
+      midHills: Color(0xFF9CA878), // Muted olive
+      nearHills: Color(0xFF7A8C5A), // Olive green
       foreground: Colors.black,
       rocks: const Color(0xFF050505),
     ),
-    roughness: 1.3,
+    roughness: 0.4, // Very flat
     seed: 121,
     landmark: LandmarkType.fort,
     foliageDensity: 0.7,
+    distanceKm: 900.0,
   ),
   Biome(
     name: 'Uzbekistan 🇺🇿',
     colors: const BiomeColors(
-      skyTop: Color(0xFF7FD1FF),
-      skyMiddle: Color(0xFFBFEAFF),
-      skyBottom: Color(0xFFF0D7B0),
-      farMountains: Color(0xFFE2C9B0),
-      midHills: Color(0xFFB57F50),
-      nearHills: Color(0xFF7A4B2E),
+      skyTop: Color(0xFF5FB8D8), // Turquoise sky
+      skyMiddle: Color(0xFF8FCCE8), // Light turquoise
+      skyBottom: Color(0xFFD8C8A8), // Warm horizon
+      farMountains: Color(0xFFC8A878), // Sandy brown
+      midHills: Color(0xFF9A7854), // Earth brown
+      nearHills: Color(0xFF78603C), // Deep earth brown
       foreground: Colors.black,
       rocks: const Color(0xFF050505),
     ),
-    roughness: 1.1,
+    roughness: 0.8, // Moderate
     seed: 131,
     landmark: LandmarkType.minaret,
     foliageDensity: 0.3,
+    distanceKm: 700.0,
   ),
   Biome(
     name: 'Turkmenistan 🇹🇲',
     colors: const BiomeColors(
-      skyTop: Color(0xFF8BD3FF),
-      skyMiddle: Color(0xFFCDEEFF),
-      skyBottom: Color(0xFFF3D6A6),
-      farMountains: Color(0xFFEAD2C0),
-      midHills: Color(0xFFB58B68),
-      nearHills: Color(0xFF8A5B3C),
+      skyTop: Color(0xFF87CEEB), // Desert sky
+      skyMiddle: Color(0xFFB0C8D8), // Pale blue
+      skyBottom: Color(0xFFD8C8B0), // Ash beige horizon
+      farMountains: Color(0xFFC8B898), // Ash beige
+      midHills: Color(0xFFA88868), // Rust brown
+      nearHills: Color(0xFF8A6848), // Deep rust
       foreground: Colors.black,
       rocks: const Color(0xFF050505),
     ),
-    roughness: 1.0,
+    roughness: 0.9, // Moderate
     seed: 141,
     landmark: LandmarkType.fortWall,
     foliageDensity: 0.1,
+    distanceKm: 1100.0,
   ),
   Biome(
     name: 'Iran 🇮🇷',
     colors: const BiomeColors(
-      skyTop: Color(0xFF7EC6E6),
-      skyMiddle: Color(0xFFA5D8E8),
-      skyBottom: Color(0xFFD7DCE0),
-      farMountains: Color(0xFF7E72B5),
-      midHills: Color(0xFF564C8A),
-      nearHills: Color(0xFF3A3266),
+      skyTop: Color(0xFF6A8CAF), // Mountain sky
+      skyMiddle: Color(0xFF8FA8C8), // Soft blue
+      skyBottom: Color(0xFFB8A878), // Gold horizon
+      farMountains: Color(0xFF5A5A5A), // Dark stone
+      midHills: Color(0xFF484848), // Darker stone
+      nearHills: Color(0xFF3A3A3A), // Deep dark stone
       foreground: Colors.black,
       rocks: const Color(0xFF050505),
     ),
-    roughness: 1.4,
+    roughness: 1.6, // Mountain (highest!)
     seed: 151,
     landmark: LandmarkType.iwan,
     foliageDensity: 0.5,
+    distanceKm: 100.0, // Final destination - short segment
   ),
 ];
+
+// Helper function to get total journey distance
+double getTotalJourneyDistance() {
+  return kBiomes.fold(0.0, (sum, biome) => sum + biome.distanceKm);
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/datasources/silk_road_data.dart';
 import '../widgets/map_canvas_widget.dart';
+import '../scene/biomes.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -75,9 +76,9 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Halfling Country',
-                    style: TextStyle(
+                  Text(
+                    MapCanvasWidget.getCurrentCountry(distanceTraveled),
+                    style: const TextStyle(
                       color: Colors.white38,
                       fontSize: 12,
                       letterSpacing: 1.0,
@@ -109,7 +110,15 @@ class _HomePageState extends State<HomePage> {
               children: [
                 _TestButton(
                   icon: Icons.add,
-                  onTap: () => setState(() => distanceTraveled += 1.0),
+                  onTap: () {
+                    setState(() {
+                      final maxDistance = getTotalJourneyDistance();
+                      distanceTraveled = (distanceTraveled + 10.0).clamp(
+                        0.0,
+                        maxDistance,
+                      );
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
                 _TestButton(
