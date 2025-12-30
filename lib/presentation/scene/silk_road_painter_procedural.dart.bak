@@ -1,0 +1,467 @@
+import 'package:flutter/material.dart';
+import 'dart:math' as math;
+import 'biomes.dart';
+import 'terrain_engine.dart';
+import 'celestial_engine.dart';
+
+class SilkRoadMapPainter extends CustomPainter {
+  final double distanceTraveled;
+  final String selectedCharacter;
+  final List<Offset> terrainFrom;
+  final List<Offset> terrainTo;
+  final List<Offset> nearHillsFrom;
+  final List<Offset> nearHillsTo;
+  final List<Offset> midHillsFrom;
+  final List<Offset> midHillsTo;
+  final List<Offset> farMountainsFrom;
+  final List<Offset> farMountainsTo;
+  final List<Rock> rocksFrom;
+  final List<Rock> rocksTo;
+  final List<Foliage> foliageFrom;
+  final List<Foliage> foliageTo;
+  final int currentBiomeIndex;
+  final int targetBiomeIndex;
+  final double biomeTransitionT;
+  final double walkCycle;
+  final List<dynamic> particles;
+
+  SilkRoadMapPainter({
+    required this.distanceTraveled,
+    required this.selectedCharacter,
+    required this.terrainFrom,
+    required this.terrainTo,
+    required this.nearHillsFrom,
+    required this.nearHillsTo,
+    required this.midHillsFrom,
+    required this.midHillsTo,
+    required this.farMountainsFrom,
+    required this.farMountainsTo,
+    required this.rocksFrom,
+    required this.rocksTo,
+    required this.foliageFrom,
+    required this.foliageTo,
+    required this.currentBiomeIndex,
+    required this.targetBiomeIndex,
+    required this.biomeTransitionT,
+    required this.walkCycle,
+    required this.particles,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final worldX = distanceTraveled.clamp(0.0, TerrainEngine.kWorldWidth - 100);
+    final cameraX = (worldX - size.width * 0.35).clamp(
+      0.0,
+      TerrainEngine.kWorldWidth - size.width,
+    );
+    final scaleY = size.height / TerrainEngine.kWorldHeight;
+
+    final currentBiome = kBiomes[currentBiomeIndex];
+    final targetBiome = kBiomes[targetBiomeIndex];
+    final colors = BiomeColors.lerp(
+      currentBiome.colors,
+      targetBiome.colors,
+      biomeTransitionT,
+    );
+    final celestial = CelestialEngine.calculateState(distanceTraveled, 0.8);
+
+    // 1. Sky
+    _drawSky(canvas, size, colors, celestial);
+
+    // 2. Blend terrain data
+    final farPts = TerrainEngine.blendTerrain(
+      farMountainsFrom,
+      farMountainsTo,
+      biomeTransitionT,
+    );
+    final midPts = TerrainEngine.blendTerrain(
+      midHillsFrom,
+      midHillsTo,
+      biomeTransitionT,
+    );
+    final nearPts = TerrainEngine.blendTerrain(
+      nearHillsFrom,
+      nearHillsTo,
+      biomeTransitionT,
+    );
+    final groundPts = TerrainEngine.blendTerrain(
+      terrainFrom,
+      terrainTo,
+      biomeTransitionT,
+    );
+
+    // 3. Draw Parallax Layers with "Forest Fringe" and "Atmospheric Perspective"
+    _drawMountainLayer(
+      canvas,
+      size,
+      cameraX,
+      farPts,
+      colors.farMountains,
+      0.15,
+      scaleY,
+      colors.skyBottom,
+      celestial.skyBot,
+    );
+    _drawMountainLayer(
+      canvas,
+      size,
+      cameraX,
+      midPts,
+      colors.midHills,
+      0.35,
+      scaleY,
+      colors.skyBottom,
+      celestial.skyBot,
+    );
+    _drawMountainLayer(
+      canvas,
+      size,
+      cameraX,
+      nearPts,
+      colors.nearHills,
+      0.60,
+      scaleY,
+      colors.skyBottom,
+      celestial.skyBot,
+    );
+
+    // 4. Foreground
+    canvas.save();
+    canvas.translate(-cameraX, 0);
+
+    _drawForeground(canvas, size, groundPts, colors.foreground, scaleY);
+    _drawFoliage(
+      canvas,
+      groundPts,
+      foliageFrom,
+      foliageTo,
+      biomeTransitionT,
+      colors.foreground,
+      cameraX,
+      size.width,
+      scaleY,
+    );
+    _drawRocks(
+      canvas,
+      groundPts,
+      rocksFrom,
+      rocksTo,
+      biomeTransitionT,
+      colors.rocks,
+      cameraX,
+      size.width,
+      scaleY,
+    );
+
+    canvas.restore();
+
+    // 5. Character
+    _drawAnimatedCharacter(canvas, size, worldX, groundPts, cameraX, scaleY);
+  }
+
+  void _drawSky(
+    Canvas canvas,
+    Size size,
+    BiomeColors colors,
+    CelestialState celestial,
+  ) {
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [celestial.skyTop, celestial.skyMid, celestial.skyBot],
+        stops: const [0.0, 0.45, 0.9],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+
+    // Bloom/Celestial body
+    final sunX = celestial.sunPosition.dx * size.width;
+    final sunY = 50 + celestial.sunPosition.dy * (size.height * 0.4);
+
+    final bloomPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          Colors.white.withOpacity(0.3),
+          (celestial.isDay ? Colors.orange : Colors.blue).withOpacity(0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: Offset(sunX, sunY), radius: 100));
+    canvas.drawCircle(Offset(sunX, sunY), 120, bloomPaint);
+
+    canvas.drawCircle(
+      Offset(sunX, sunY),
+      celestial.isDay ? 20 : 16,
+      Paint()
+        ..color = Colors.white
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+  }
+
+  void _drawMountainLayer(
+    Canvas canvas,
+    Size size,
+    double cameraX,
+    List<Offset> points,
+    Color color,
+    double factor,
+    double scaleY,
+    Color mist,
+    Color skyHorizon,
+  ) {
+    if (points.isEmpty) return;
+    canvas.save();
+    canvas.translate(-cameraX * factor, 0);
+
+    final path = Path()..moveTo(points.first.dx, size.height);
+    for (int i = 0; i < points.length; i++) {
+      final p = points[i];
+      final y = p.dy * scaleY;
+      if (i > 0) {
+        final prev = points[i - 1];
+        const double res = 3.0; // resolution
+        for (double dx = prev.dx + res; dx < p.dx; dx += res) {
+          final double t = (dx - prev.dx) / (p.dx - prev.dx);
+          final interY = (prev.dy * (1 - t) + p.dy * t) * scaleY;
+          final double noise =
+              (math.sin(dx * 0.6 + factor * 50) + math.cos(dx * 1.5)).abs() *
+              2.5;
+          path.lineTo(dx, interY - noise);
+        }
+      }
+      path.lineTo(p.dx, y);
+    }
+    path
+      ..lineTo(points.last.dx, size.height)
+      ..close();
+
+    // Horizon Color Blending (Atmospheric Perspective)
+    final atmosphericColor = Color.lerp(
+      color,
+      skyHorizon,
+      0.3 + (1.0 - factor) * 0.4,
+    )!;
+
+    final grad = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        atmosphericColor,
+        Color.lerp(atmosphericColor, Colors.black, 0.4)!,
+      ],
+    ).createShader(Rect.fromLTWH(0, 0, TerrainEngine.kWorldWidth, size.height));
+
+    canvas.drawPath(path, Paint()..shader = grad);
+
+    // Simple vertical haze
+    final hazePaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [skyHorizon.withOpacity(0.0), skyHorizon.withOpacity(0.3)],
+        stops: const [0.7, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, 1, size.height));
+    canvas.drawPath(path, hazePaint);
+
+    canvas.restore();
+  }
+
+  void _drawForeground(
+    Canvas canvas,
+    Size size,
+    List<Offset> points,
+    Color color,
+    double scaleY,
+  ) {
+    if (points.isEmpty) return;
+    final path = Path()..moveTo(points.first.dx, size.height);
+    for (final p in points) {
+      path.lineTo(p.dx, p.dy * scaleY);
+    }
+    path
+      ..lineTo(TerrainEngine.kWorldWidth, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  void _drawFoliage(
+    Canvas canvas,
+    List<Offset> terrain,
+    List<Foliage> from,
+    List<Foliage> to,
+    double t,
+    Color color,
+    double cameraX,
+    double width,
+    double scaleY,
+  ) {
+    final paint = Paint()..color = color;
+    void drawSet(List<Foliage> list, double alpha) {
+      paint.color = color.withOpacity(alpha);
+      for (final f in list) {
+        if (f.x < cameraX - 100 || f.x > cameraX + width + 100) continue;
+        final y = TerrainEngine.sampleTerrainY(terrain, f.x) * scaleY;
+        if (f.type == 0)
+          _drawOrganicTree(canvas, Offset(f.x, y), f.scale * 45, paint);
+        else if (f.type == 1)
+          _drawBush(canvas, Offset(f.x, y), f.scale * 20, paint);
+        else
+          _drawGrassClump(canvas, Offset(f.x, y), f.scale * 15, paint);
+      }
+    }
+
+    drawSet(from, 1 - t);
+    drawSet(to, t);
+  }
+
+  void _drawOrganicTree(Canvas canvas, Offset pos, double size, Paint paint) {
+    canvas.drawRect(
+      Rect.fromLTWH(
+        pos.dx - size * 0.06,
+        pos.dy - size * 0.18,
+        size * 0.12,
+        size * 0.18,
+      ),
+      paint,
+    );
+    final rand = math.Random(pos.dx.toInt());
+    for (int i = 0; i < 7; i++) {
+      final ox = (rand.nextDouble() - 0.5) * size * 0.6;
+      final oy = -size * (0.3 + rand.nextDouble() * 0.4);
+      canvas.drawCircle(
+        Offset(pos.dx + ox, pos.dy + oy),
+        size * (0.18 + rand.nextDouble() * 0.15),
+        paint,
+      );
+    }
+  }
+
+  void _drawBush(Canvas canvas, Offset pos, double size, Paint paint) {
+    final rand = math.Random(pos.dx.toInt());
+    final path = Path()..moveTo(pos.dx - size, pos.dy);
+    for (double x = -size; x <= size; x += size * 0.4) {
+      path.quadraticBezierTo(
+        pos.dx + x + size * 0.2,
+        pos.dy - size * (0.6 + rand.nextDouble()),
+        pos.dx + x + size * 0.4,
+        pos.dy,
+      );
+    }
+    canvas.drawPath(path..close(), paint);
+  }
+
+  void _drawGrassClump(Canvas canvas, Offset pos, double size, Paint paint) {
+    final rand = math.Random(pos.dx.toInt());
+    for (int i = 0; i < 8; i++) {
+      final xOff = (rand.nextDouble() - 0.5) * size * 1.5;
+      final h = size * (0.8 + rand.nextDouble() * 1.5);
+      final curve = (rand.nextDouble() - 0.5) * size;
+      canvas.drawPath(
+        Path()
+          ..moveTo(pos.dx + xOff, pos.dy)
+          ..quadraticBezierTo(
+            pos.dx + xOff + curve,
+            pos.dy - h,
+            pos.dx + xOff + curve * 0.5,
+            pos.dy - h * 1.1,
+          ),
+        paint
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2,
+      );
+    }
+    paint.style = PaintingStyle.fill;
+  }
+
+  void _drawRocks(
+    Canvas canvas,
+    List<Offset> terrain,
+    List<Rock> from,
+    List<Rock> to,
+    double t,
+    Color color,
+    double cameraX,
+    double width,
+    double scaleY,
+  ) {
+    final paint = Paint()..color = color;
+    void drawSet(List<Rock> list, double alpha) {
+      paint.color = color.withOpacity(alpha);
+      for (final rock in list) {
+        if (rock.x < cameraX - 50 || rock.x > cameraX + width + 50) continue;
+        final y = TerrainEngine.sampleTerrainY(terrain, rock.x) * scaleY;
+        canvas.drawOval(
+          Rect.fromLTWH(
+            rock.x - rock.size / 2,
+            y - rock.size * 0.4,
+            rock.size,
+            rock.size * 0.7,
+          ),
+          paint,
+        );
+      }
+    }
+
+    drawSet(from, 1 - t);
+    drawSet(to, t);
+  }
+
+  void _drawAnimatedCharacter(
+    Canvas canvas,
+    Size size,
+    double worldX,
+    List<Offset> terrain,
+    double cameraX,
+    double scaleY,
+  ) {
+    final y = TerrainEngine.sampleTerrainY(terrain, worldX) * scaleY;
+    final x = worldX - cameraX;
+    final charSize = 32.0;
+
+    // Contact Shadow
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(x, y), width: 18, height: 6),
+      Paint()
+        ..color = Colors.black.withOpacity(0.3)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+
+    // Glow for visibility
+    canvas.drawCircle(
+      Offset(x, y - 16),
+      22,
+      Paint()
+        ..color = const Color(0xFFFFD700).withOpacity(0.12)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+    );
+
+    // Body (stick man/silhouette)
+    final p = Paint()..color = Colors.black;
+    canvas.drawCircle(Offset(x, y - 28), 6, p); // Head
+    canvas.drawRect(Rect.fromLTWH(x - 4, y - 22, 8, 14), p); // Body
+
+    final l = math.sin(walkCycle) * 8;
+    canvas.drawLine(
+      Offset(x - 2, y - 8),
+      Offset(x - 2 + l, y),
+      p
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      Offset(x + 2, y - 8),
+      Offset(x + 2 - l, y),
+      p
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Stick
+    canvas.drawLine(
+      Offset(x + 6, y - 18),
+      Offset(x + 10 + l * 0.5, y),
+      p..strokeWidth = 2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant SilkRoadMapPainter oldDelegate) => true;
+}

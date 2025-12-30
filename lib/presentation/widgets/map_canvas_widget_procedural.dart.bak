@@ -1,0 +1,223 @@
+import 'package:flutter/material.dart';
+import '../scene/biomes.dart';
+import '../scene/terrain_engine.dart';
+import '../scene/silk_road_painter.dart';
+
+class MapCanvasWidget extends StatefulWidget {
+  final List<dynamic> waypoints;
+  final double distanceTraveled;
+  final String selectedCharacter;
+
+  const MapCanvasWidget({
+    super.key,
+    required this.waypoints,
+    required this.distanceTraveled,
+    required this.selectedCharacter,
+  });
+
+  @override
+  State<MapCanvasWidget> createState() => _MapCanvasWidgetState();
+}
+
+class _MapCanvasWidgetState extends State<MapCanvasWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  // Data State
+  List<Offset> _terrainFrom = [];
+  List<Offset> _terrainTo = [];
+  List<Offset> _nearHillsFrom = [];
+  List<Offset> _nearHillsTo = [];
+  List<Offset> _midHillsFrom = [];
+  List<Offset> _midHillsTo = [];
+  List<Offset> _farMountainsFrom = [];
+  List<Offset> _farMountainsTo = [];
+  List<Rock> _rocksFrom = [];
+  List<Rock> _rocksTo = [];
+  List<Foliage> _foliageFrom = [];
+  List<Foliage> _foliageTo = [];
+
+  // Logic State
+  int _currentBiomeIndex = 0;
+  int _targetBiomeIndex = 0;
+  double _biomeTransitionT = 0.0;
+  bool _isTransitioning = false;
+  double _animatedDistance = 0.0;
+  double _walkCycle = 0.0;
+
+  static const double kMetersPerStep = 0.8;
+  static const int kStepsPerBiome = 1000;
+
+  @override
+  void initState() {
+    super.initState();
+    _animatedDistance = widget.distanceTraveled;
+    _initializeScene();
+    _controller =
+        AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 16),
+          )
+          ..addListener(_tick)
+          ..repeat();
+  }
+
+  void _initializeScene() {
+    final biome = kBiomes[0];
+    // Lowering baselines to make more room for sky/character after font size increase
+    _terrainFrom = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.75, // 75% from top
+      roughness: biome.roughness,
+      seed: biome.seed,
+      segments: 200,
+      octaves: 5,
+    );
+    _terrainTo = _terrainFrom;
+
+    _nearHillsFrom = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.65,
+      roughness: biome.roughness * 0.8,
+      seed: biome.seed + 5,
+      segments: 160,
+      octaves: 4,
+    );
+    _nearHillsTo = _nearHillsFrom;
+
+    _midHillsFrom = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.55,
+      roughness: biome.roughness * 0.6,
+      seed: biome.seed + 10,
+      segments: 120,
+      octaves: 3,
+    );
+    _midHillsTo = _midHillsFrom;
+
+    _farMountainsFrom = TerrainEngine.generateTerrain(
+      baseY: TerrainEngine.kWorldHeight * 0.45,
+      roughness: biome.roughness * 0.4,
+      seed: biome.seed + 20,
+      segments: 80,
+      octaves: 2,
+    );
+    _farMountainsTo = _farMountainsFrom;
+
+    _rocksFrom = generateRocks(biome.seed, 50);
+    _rocksTo = _rocksFrom;
+
+    _foliageFrom = generateFoliage(biome.seed, biome.foliageDensity);
+    _foliageTo = _foliageFrom;
+  }
+
+  void _tick() {
+    final distDiff = widget.distanceTraveled - _animatedDistance;
+    if (distDiff.abs() > 0.1) {
+      _animatedDistance += distDiff * 0.05;
+      _walkCycle += 0.25;
+    } else {
+      _animatedDistance = widget.distanceTraveled;
+      _walkCycle += 0.02;
+    }
+
+    if (_isTransitioning) {
+      setState(() {
+        _biomeTransitionT += 0.012;
+        if (_biomeTransitionT >= 1.0) {
+          _biomeTransitionT = 1.0;
+          _isTransitioning = false;
+          _currentBiomeIndex = _targetBiomeIndex;
+        }
+      });
+    } else {
+      _checkBiomeChange(_animatedDistance);
+      setState(() {});
+    }
+  }
+
+  void _checkBiomeChange(double currentDistance) {
+    final steps = (currentDistance / kMetersPerStep).floor();
+    final newBiomeIndex = (steps ~/ kStepsPerBiome) % kBiomes.length;
+
+    if (newBiomeIndex != _currentBiomeIndex && !_isTransitioning) {
+      _targetBiomeIndex = newBiomeIndex;
+      _isTransitioning = true;
+      _biomeTransitionT = 0.0;
+
+      final targetBiome = kBiomes[_targetBiomeIndex];
+      _terrainTo = TerrainEngine.generateTerrain(
+        baseY: TerrainEngine.kWorldHeight * 0.75,
+        roughness: targetBiome.roughness,
+        seed: targetBiome.seed,
+        segments: 200,
+        octaves: 5,
+      );
+      _nearHillsTo = TerrainEngine.generateTerrain(
+        baseY: TerrainEngine.kWorldHeight * 0.65,
+        roughness: targetBiome.roughness * 0.8,
+        seed: targetBiome.seed + 5,
+        segments: 160,
+        octaves: 4,
+      );
+      _midHillsTo = TerrainEngine.generateTerrain(
+        baseY: TerrainEngine.kWorldHeight * 0.55,
+        roughness: targetBiome.roughness * 0.6,
+        seed: targetBiome.seed + 10,
+        segments: 120,
+        octaves: 3,
+      );
+      _farMountainsTo = TerrainEngine.generateTerrain(
+        baseY: TerrainEngine.kWorldHeight * 0.45,
+        roughness: targetBiome.roughness * 0.4,
+        seed: targetBiome.seed + 20,
+        segments: 80,
+        octaves: 2,
+      );
+
+      _rocksTo = generateRocks(targetBiome.seed, 50);
+      _foliageTo = generateFoliage(
+        targetBiome.seed,
+        targetBiome.foliageDensity,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: CustomPaint(
+        painter: SilkRoadMapPainter(
+          distanceTraveled: _animatedDistance,
+          selectedCharacter: widget.selectedCharacter,
+          terrainFrom: _terrainFrom,
+          terrainTo: _terrainTo,
+          nearHillsFrom: _nearHillsFrom,
+          nearHillsTo: _nearHillsTo,
+          midHillsFrom: _midHillsFrom,
+          midHillsTo: _midHillsTo,
+          farMountainsFrom: _farMountainsFrom,
+          farMountainsTo: _farMountainsTo,
+          rocksFrom: _rocksFrom,
+          rocksTo: _rocksTo,
+          foliageFrom: _foliageFrom,
+          foliageTo: _foliageTo,
+          currentBiomeIndex: _currentBiomeIndex,
+          targetBiomeIndex: _targetBiomeIndex,
+          biomeTransitionT: _biomeTransitionT,
+          walkCycle: _walkCycle,
+          particles: [], // Simplified for now
+        ),
+        child: Container(),
+      ),
+    );
+  }
+}
