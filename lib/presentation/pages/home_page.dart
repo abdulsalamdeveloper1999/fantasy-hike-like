@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import '../../data/datasources/silk_road_data.dart';
 import '../widgets/map_canvas_widget.dart';
 import '../scene/biomes.dart';
+import '../../data/datasources/narrative_data.dart';
 
 @RoutePage()
 class HomePage extends StatefulWidget {
@@ -15,8 +16,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   double distanceTraveled = 0.0;
+  double _visualDistanceMeters = 0.0;
+  double _currentMovementSpeed = 2.0; // Default Hike speed
   String selectedCharacter = 'default';
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _visualDistanceMeters = distanceTraveled;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +39,12 @@ class _HomePageState extends State<HomePage> {
               waypoints: SilkRoadData.waypoints,
               distanceTraveled: distanceTraveled,
               selectedCharacter: selectedCharacter,
+              movementSpeed: _currentMovementSpeed,
+              onProgressUpdate: (meters) {
+                if (mounted) {
+                  setState(() => _visualDistanceMeters = meters);
+                }
+              },
             ),
           ),
 
@@ -42,6 +57,8 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const SizedBox(height: 24),
+
                   Text(
                     'Day 1',
                     style: TextStyle(
@@ -58,44 +75,48 @@ class _HomePageState extends State<HomePage> {
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        '${distanceTraveled.toInt()}',
+                        (_visualDistanceMeters / 1000).toStringAsFixed(1),
                         style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 32, // Larger
+                          fontWeight: FontWeight.w900, // Extra bold
                           color: Color(0xFFFFD700),
                           fontFamily: 'Serif',
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       Text(
-                        'metres',
+                        'KM', // Units changed to KM
                         style: TextStyle(
                           color: const Color(0xFFFFD700).withOpacity(0.6),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    MapCanvasWidget.getCurrentCountry(distanceTraveled),
+                    MapCanvasWidget.getCurrentCountry(
+                      _visualDistanceMeters / 1000,
+                    ).toUpperCase(),
                     style: const TextStyle(
-                      color: Colors.white38,
-                      fontSize: 12,
-                      letterSpacing: 1.0,
+                      color: Colors.white, // Brighter
+                      fontSize: 16, // Larger
+                      fontWeight: FontWeight.w900, // Bolder
+                      letterSpacing: 2.0, // More spaced out
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 50),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      'Walking down the garden path',
+                      NarrativeData.getNarrative(_visualDistanceMeters / 1000),
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14, // Consistent with original design
                         fontStyle: FontStyle.italic,
-                        fontSize: 14,
+                        height: 1.5,
                       ),
                     ),
                   ),
@@ -104,28 +125,62 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // 3. Subtle Add Step Buttons (Top right floaters for testing)
+          // 3. Multi-Speed Travel Buttons
           Positioned(
             top: 50,
             right: 16,
             child: Column(
               children: [
+                // HIKE (🚶) - Human Pace (~11 km/h)
                 _TestButton(
-                  icon: Icons.add,
+                  icon: Icons.directions_walk,
                   onTap: () {
                     setState(() {
-                      final maxDistance = getTotalJourneyDistance();
-                      distanceTraveled = (distanceTraveled + 10.0).clamp(
+                      _currentMovementSpeed = 0.5; // ~11 km/h power-walk
+                      distanceTraveled = (distanceTraveled + 1000.0).clamp(
                         0.0,
-                        maxDistance,
+                        getTotalJourneyDistance() * 1000.0,
                       );
                     });
                   },
                 ),
                 const SizedBox(height: 12),
+                // GALLOP (🐎) - Fast (~65 km/h)
+                _TestButton(
+                  icon: Icons.speed,
+                  onTap: () {
+                    setState(() {
+                      _currentMovementSpeed = 0.3; // ~65 km/h horse gallop
+                      distanceTraveled = (distanceTraveled + 10000.0).clamp(
+                        0.0,
+                        getTotalJourneyDistance() * 1000.0,
+                      );
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                // BLITZ (⚡) - Superfast (~320 km/h)
+                _TestButton(
+                  icon: Icons.bolt,
+                  onTap: () {
+                    setState(() {
+                      _currentMovementSpeed = 1.5; // ~320 km/h superhuman
+                      distanceTraveled = (distanceTraveled + 50000.0).clamp(
+                        0.0,
+                        getTotalJourneyDistance() * 1000.0,
+                      );
+                    });
+                  },
+                ),
+                const SizedBox(height: 24),
                 _TestButton(
                   icon: Icons.refresh,
-                  onTap: () => setState(() => distanceTraveled = 0),
+                  onTap: () {
+                    setState(() {
+                      distanceTraveled = 0;
+                      _visualDistanceMeters = 0;
+                    });
+                  },
                 ),
               ],
             ),

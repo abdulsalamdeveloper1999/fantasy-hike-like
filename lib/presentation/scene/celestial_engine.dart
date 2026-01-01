@@ -3,7 +3,8 @@ import 'dart:math' as math;
 import 'biomes.dart';
 
 class CelestialEngine {
-  static const int kStepsPerCycle = 5000;
+  static const int kStepsPerCycle =
+      40000; // 40km instead of 5km for better pacing
 
   // Smoothstep function for cross-dissolve effect
   static double _smooth(double t) => t * t * (3.0 - 2.0 * t);

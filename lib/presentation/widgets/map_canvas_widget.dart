@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:ui' as ui;
+import 'dart:math' as math;
 import '../scene/biomes.dart';
 import '../scene/terrain_engine.dart';
 import '../scene/silk_road_painter.dart';
@@ -7,12 +10,16 @@ class MapCanvasWidget extends StatefulWidget {
   final List<dynamic> waypoints;
   final double distanceTraveled;
   final String selectedCharacter;
+  final Function(double meters)? onProgressUpdate;
+  final double movementSpeed; // Meters per frame
 
   const MapCanvasWidget({
     super.key,
     required this.waypoints,
     required this.distanceTraveled,
     required this.selectedCharacter,
+    this.onProgressUpdate,
+    this.movementSpeed = 2.0, // Default to natural walk
   });
 
   // Static helper to get current country name
@@ -60,12 +67,14 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
   double _walkCycle = 0.0;
   double _viewOffset = 0.0; // New state for interactive review
   int _currentBiomeIndex = 0;
+  ui.Image? _characterImage;
 
   @override
   void initState() {
     super.initState();
     _animatedDistance = widget.distanceTraveled;
     _initializeScene();
+    _loadCharacterImage();
     _controller =
         AnimationController(
             vsync: this,
@@ -73,6 +82,29 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
           )
           ..addListener(_tick)
           ..repeat();
+  }
+
+  Future<void> _loadCharacterImage() async {
+    try {
+      debugPrint('🎨 MapCanvas: Attempting to load character asset...');
+      final ByteData data = await rootBundle.load('assets/character.png');
+      debugPrint('🎨 MapCanvas: Asset data size: ${data.lengthInBytes}');
+      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+      final frame = await codec.getNextFrame();
+      if (mounted) {
+        setState(() {
+          _characterImage = frame.image;
+        });
+        debugPrint(
+          '🎨 MapCanvas: Character asset loaded successfully (${frame.image.width}x${frame.image.height}).',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ MapCanvas Error loading character image: $e');
+      debugPrint(
+        '⚠️ MapCanvas: Check if assets/character.png exists and is listed in pubspec.yaml',
+      );
+    }
   }
 
   void _initializeScene() {
@@ -211,11 +243,26 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
   void _tick() {
     final distDiff = widget.distanceTraveled - _animatedDistance;
     if (distDiff.abs() > 0.1) {
-      _animatedDistance += distDiff * 0.15;
-      _walkCycle += 0.45;
+      // Step Pulse: Character pushes off the ground
+      final stepPulse = (math.sin(_walkCycle * math.pi * 2).abs() + 0.3);
+
+      final maxDeltaPerFrame = widget.movementSpeed;
+      final step =
+          distDiff.clamp(-maxDeltaPerFrame, maxDeltaPerFrame) * stepPulse;
+
+      _animatedDistance += step;
+      widget.onProgressUpdate?.call(_animatedDistance);
+
+      // Animation Sync: Stride length increases with speed to prevent blurring
+      final strideLength = (widget.movementSpeed * 30.0).clamp(2.0, 100.0);
+      final cycleIncrement = (step.abs() / strideLength);
+
+      // Cap frequency at ~4 cycles per second (8 steps/sec) to keep visual clarity
+      _walkCycle += cycleIncrement.clamp(0.0, 0.08);
     } else {
       _animatedDistance = widget.distanceTraveled;
-      _walkCycle += 0.02;
+      widget.onProgressUpdate?.call(_animatedDistance);
+      _walkCycle += 0.015; // Idle breath
     }
 
     // Check for biome transitions using cumulative distances
@@ -233,13 +280,15 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
 
     for (int i = 0; i < kBiomes.length; i++) {
       final biome = kBiomes[i];
-      final biomeEnd = cumulativeDistance + biome.distanceKm;
+      final biomeEnd =
+          cumulativeDistance +
+          (biome.distanceKm * 1000.0); // Convert KM to Meters
 
       if (distance < biomeEnd || i == kBiomes.length - 1) {
         // We're in this biome
         final localDistance = distance - cumulativeDistance;
         final transitionStart =
-            biome.distanceKm - 50.0; // Last 50km for transition
+            (biome.distanceKm * 1000.0) - 50000.0; // Last 50km for transition
 
         double transitionT = 0.0;
         if (localDistance > transitionStart && biome.distanceKm > 0) {
@@ -287,9 +336,10 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
           //details.primaryDelta > 0 is drag right (look back)
           //details.primaryDelta < 0 is drag left (return to character)
 
-          // Use a sensitivity factor to match real-world step feeling
-          // Note: kVisualScale is 10.0 in painter, so 1 pixel = 0.1 meters
-          const double sensitivity = 0.1;
+          // Increased sensitivity for "Fast Scroll"
+          // In previous version sensitivity was 0.1 (10 pixels = 1 meter)
+          // Now 1 pixel = 1 meter, so dragging across screen (e.g. 400px) moves 400m
+          const double sensitivity = 1.0;
           _viewOffset -= details.primaryDelta! * sensitivity;
 
           // Clamp _viewOffset:
@@ -325,6 +375,7 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
             biomeTransitionT: biomeTransitionT,
             walkCycle: _walkCycle,
             particles: [], // Simplified for now
+            characterImage: _characterImage,
           ),
           child: Container(),
         ),

@@ -1,7 +1,8 @@
 import '../../domain/entities/route_waypoint.dart';
 
 class SilkRoadData {
-  static const double totalRouteDistance = 5000.0; // kilometers
+  static const double totalRouteDistance =
+      5700.0; // Align with narrative segments
 
   static final List<RouteWaypoint> waypoints = [
     const RouteWaypoint(
@@ -15,48 +16,48 @@ class SilkRoadData {
     ),
     const RouteWaypoint(
       id: 1,
-      name: 'Urumqi',
-      country: 'Xinjiang, China',
+      name: 'Great Wall Reach',
+      country: 'Northern China',
       emoji: '🇨🇳',
-      latitude: 43.8256,
-      longitude: 87.6168,
-      distanceFromStart: 1200,
+      latitude: 40.4319,
+      longitude: 116.5704,
+      distanceFromStart: 1800,
     ),
     const RouteWaypoint(
       id: 2,
-      name: 'Almaty',
+      name: 'Steppe Pass',
       country: 'Kazakhstan',
       emoji: '🇰🇿',
       latitude: 43.2220,
       longitude: 76.8512,
-      distanceFromStart: 2100,
+      distanceFromStart: 3000,
     ),
     const RouteWaypoint(
       id: 3,
-      name: 'Samarkand',
-      country: 'Uzbekistan',
-      emoji: '🇺🇿',
-      latitude: 39.6270,
-      longitude: 66.9750,
-      distanceFromStart: 3200,
-    ),
-    const RouteWaypoint(
-      id: 4,
-      name: 'Merv',
+      name: 'Desert Oasis',
       country: 'Turkmenistan',
       emoji: '🇹🇲',
       latitude: 37.6650,
       longitude: 62.1900,
-      distanceFromStart: 4000,
+      distanceFromStart: 3900,
     ),
     const RouteWaypoint(
-      id: 5,
-      name: 'Tehran',
-      country: 'Iran (Persia)',
+      id: 4,
+      name: 'Persian Frontier',
+      country: 'Persia (Iran)',
       emoji: '🇮🇷',
       latitude: 35.6892,
       longitude: 51.3890,
-      distanceFromStart: 5000,
+      distanceFromStart: 4600,
+    ),
+    const RouteWaypoint(
+      id: 5,
+      name: 'Imperial Capital',
+      country: 'Persian Empire',
+      emoji: '🏛️',
+      latitude: 32.6539,
+      longitude: 51.6660,
+      distanceFromStart: 5700,
     ),
   ];
 }

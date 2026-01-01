@@ -1,4 +1,4 @@
-package com.example.fantast_huke_clone
+package com.cnsmp.stepjourney
 
 import io.flutter.embedding.android.FlutterActivity
 
