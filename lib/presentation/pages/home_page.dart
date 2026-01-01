@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'package:auto_route/auto_route.dart';
 import '../../data/datasources/silk_road_data.dart';
 import '../widgets/map_canvas_widget.dart';
 import '../scene/biomes.dart';
 
+@RoutePage()
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 

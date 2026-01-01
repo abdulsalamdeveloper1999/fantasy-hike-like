@@ -156,14 +156,14 @@ class SilkRoadMapPainter extends CustomPainter {
           _drawForegroundStrip(canvas, size, groundPts, Colors.black, scaleY),
     );
 
-    // 4.5. Foliage (trees and bushes)
+    // 4.5. Scenery (trees/plants or rocks)
     _drawTiledLayer(
       canvas,
       size,
       totalCamX,
       1.0, // foreground factor (same as terrain)
       (offset) =>
-          _drawFoliageStrip(canvas, size, groundPts, scaleY, biomeTransitionT),
+          _drawSceneryStrip(canvas, size, groundPts, scaleY, biomeTransitionT),
     );
 
     // 5. Character
@@ -400,32 +400,80 @@ class SilkRoadMapPainter extends CustomPainter {
     canvas.drawPath(path, Paint()..color = color);
   }
 
-  void _drawFoliageStrip(
+  void _drawSceneryStrip(
     Canvas canvas,
     Size size,
     List<Offset> terrain,
     double scaleY,
-    double biomeTransitionT,
+    double t,
   ) {
-    // Blend foliage between current and target biome
-    final foliageList = <Foliage>[];
+    final currentBiome = kBiomes[currentBiomeIndex];
+    final targetBiome = kBiomes[targetBiomeIndex];
 
-    // Mix foliage from both biomes during transition
-    for (var f in foliageFrom) {
-      if (biomeTransitionT < 0.5) {
-        foliageList.add(f);
+    final rockColor = BiomeColors.lerp(
+      currentBiome.colors,
+      targetBiome.colors,
+      t,
+    ).rocks;
+
+    // 1. Current Biome (visible when t < 0.5 for immediate swap, or handle with fade?)
+    // Using previous logic: cut over at 0.5
+    if (t < 0.5) {
+      if (currentBiome.isDesert) {
+        _drawRocks(canvas, terrain, scaleY, rocksFrom, rockColor);
+      } else {
+        _drawFoliage(canvas, terrain, scaleY, foliageFrom);
       }
     }
-    for (var f in foliageTo) {
-      if (biomeTransitionT > 0.5) {
-        foliageList.add(f);
+
+    // 2. Target Biome
+    if (t >= 0.5) {
+      if (targetBiome.isDesert) {
+        _drawRocks(canvas, terrain, scaleY, rocksTo, rockColor);
+      } else {
+        _drawFoliage(canvas, terrain, scaleY, foliageTo);
       }
     }
+  }
 
-    // Draw each foliage item
+  void _drawRocks(
+    Canvas canvas,
+    List<Offset> terrain,
+    double scaleY,
+    List<Rock> rocks,
+    Color color,
+  ) {
+    final paint = Paint()..color = color;
+    for (var rock in rocks) {
+      final groundY = TerrainEngine.getGroundVisualY(terrain, rock.x, scaleY);
+
+      // Draw rock as a slightly flattened oval
+      final width = rock.size;
+      final height = rock.size * 0.7;
+
+      // Embed rock slightly into the ground (center at groundY)
+      // This ensures it doesn't look like it's floating on top of noise peaks
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(rock.x, groundY),
+          width: width,
+          height: height,
+        ),
+        paint,
+      );
+    }
+  }
+
+  void _drawFoliage(
+    Canvas canvas,
+    List<Offset> terrain,
+    double scaleY,
+    List<Foliage> foliageList,
+  ) {
     for (var foliage in foliageList) {
       final x = foliage.x;
-      final groundY = TerrainEngine.getGroundVisualY(terrain, x, scaleY);
+      // Use smooth terrain sampling to prevent floating
+      final groundY = TerrainEngine.sampleTerrainY(terrain, x) * scaleY;
 
       // Foliage color - dark green/black
       final foliageColor = Color.lerp(
@@ -434,51 +482,133 @@ class SilkRoadMapPainter extends CustomPainter {
         0.5,
       )!;
 
-      final paint = Paint()
-        ..color = foliageColor
-        ..style = PaintingStyle.fill;
-
       if (foliage.type == 0) {
-        // Plant/Shrub - rounded bush shape
-        final height = 12.0 * foliage.scale;
-        final width = 10.0 * foliage.scale;
-
-        // Draw as overlapping circles for a bushy look
-        final plantPaint = Paint()
-          ..color = foliageColor
-          ..style = PaintingStyle.fill;
-
-        // Main bush body
-        canvas.drawCircle(
-          Offset(x, groundY - height / 2),
-          width / 2,
-          plantPaint,
-        );
-
-        // Additional circles for fuller look
-        canvas.drawCircle(
-          Offset(x - width / 3, groundY - height / 3),
-          width / 3,
-          plantPaint,
-        );
-        canvas.drawCircle(
-          Offset(x + width / 3, groundY - height / 3),
-          width / 3,
-          plantPaint,
-        );
+        // Tree - trunk + canopy
+        _drawTree(canvas, x, groundY, foliage.scale, foliageColor);
       } else if (foliage.type == 1) {
-        // Bush - simple circle
-        final radius = 4.0 * foliage.scale;
-        canvas.drawCircle(Offset(x, groundY - radius), radius, paint);
+        // Bush - rounded organic shape
+        _drawBush(canvas, x, groundY, foliage.scale, foliageColor);
       } else {
-        // Grass - small vertical line
-        canvas.drawLine(
-          Offset(x, groundY),
-          Offset(x, groundY - 3.0 * foliage.scale),
-          paint..strokeWidth = 1,
-        );
+        // Grass - small tuft
+        _drawGrass(canvas, x, groundY, foliage.scale, foliageColor);
       }
     }
+  }
+
+  void _drawTree(
+    Canvas canvas,
+    double x,
+    double groundY,
+    double scale,
+    Color color,
+  ) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Trunk - thin vertical line
+    final trunkWidth = 1.5 * scale;
+    final trunkHeight = 10.0 * scale;
+    canvas.drawRect(
+      Rect.fromLTWH(
+        x - trunkWidth / 2,
+        groundY - trunkHeight,
+        trunkWidth,
+        trunkHeight,
+      ),
+      paint,
+    );
+
+    // Canopy - organic blob made of overlapping circles
+    final canopyRadius = 6.0 * scale;
+    final canopyY = groundY - trunkHeight - canopyRadius * 0.5;
+
+    // Main canopy body
+    canvas.drawCircle(Offset(x, canopyY), canopyRadius, paint);
+
+    // Additional circles for fuller, organic look
+    canvas.drawCircle(
+      Offset(x - canopyRadius * 0.5, canopyY + canopyRadius * 0.3),
+      canopyRadius * 0.8,
+      paint,
+    );
+    canvas.drawCircle(
+      Offset(x + canopyRadius * 0.5, canopyY + canopyRadius * 0.3),
+      canopyRadius * 0.8,
+      paint,
+    );
+    canvas.drawCircle(
+      Offset(x, canopyY - canopyRadius * 0.4),
+      canopyRadius * 0.6,
+      paint,
+    );
+  }
+
+  void _drawBush(
+    Canvas canvas,
+    double x,
+    double groundY,
+    double scale,
+    Color color,
+  ) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Draw bush as overlapping circles for organic look
+    final radius = 5.0 * scale;
+
+    // Main body
+    canvas.drawCircle(Offset(x, groundY - radius), radius, paint);
+
+    // Left bump
+    canvas.drawCircle(
+      Offset(x - radius * 0.6, groundY - radius * 0.7),
+      radius * 0.7,
+      paint,
+    );
+
+    // Right bump
+    canvas.drawCircle(
+      Offset(x + radius * 0.6, groundY - radius * 0.7),
+      radius * 0.7,
+      paint,
+    );
+  }
+
+  void _drawGrass(
+    Canvas canvas,
+    double x,
+    double groundY,
+    double scale,
+    Color color,
+  ) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8
+      ..strokeCap = StrokeCap.round;
+
+    // Draw 3 grass blades
+    final height = 4.0 * scale;
+    final spread = 1.5 * scale;
+
+    // Center blade
+    canvas.drawLine(Offset(x, groundY), Offset(x, groundY - height), paint);
+
+    // Left blade (slightly shorter and angled)
+    canvas.drawLine(
+      Offset(x - spread, groundY),
+      Offset(x - spread * 0.5, groundY - height * 0.8),
+      paint,
+    );
+
+    // Right blade (slightly shorter and angled)
+    canvas.drawLine(
+      Offset(x + spread, groundY),
+      Offset(x + spread * 0.5, groundY - height * 0.8),
+      paint,
+    );
   }
 
   void _drawAnimatedCharacter(

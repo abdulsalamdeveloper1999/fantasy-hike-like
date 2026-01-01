@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
     final appRouter = AppRouter();
 
     return MaterialApp.router(
-      title: 'Fantasy Hike - Silk Road',
+      title: 'Step Journey',
       theme: AppTheme.darkTheme,
       routerConfig: appRouter.config(),
       debugShowCheckedModeBanner: false,

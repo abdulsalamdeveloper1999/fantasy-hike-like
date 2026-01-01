@@ -48,6 +48,7 @@ class Biome {
   final LandmarkType landmark;
   final double foliageDensity;
   final double distanceKm; // Distance in kilometers for this country segment
+  final bool isDesert;
 
   const Biome({
     required this.name,
@@ -57,6 +58,7 @@ class Biome {
     required this.landmark,
     this.foliageDensity = 0.5,
     required this.distanceKm,
+    this.isDesert = false,
   });
 }
 
@@ -78,6 +80,7 @@ final List<Biome> kBiomes = [
     landmark: LandmarkType.yurt,
     foliageDensity: 0.2,
     distanceKm: 1800.0,
+    isDesert: false,
   ),
   Biome(
     name: 'Xinjiang 🇨🇳',
@@ -96,6 +99,7 @@ final List<Biome> kBiomes = [
     landmark: LandmarkType.pagoda,
     foliageDensity: 0.4,
     distanceKm: 1200.0,
+    isDesert: true,
   ),
   Biome(
     name: 'Kazakhstan 🇰🇿',
@@ -114,6 +118,7 @@ final List<Biome> kBiomes = [
     landmark: LandmarkType.fort,
     foliageDensity: 0.7,
     distanceKm: 900.0,
+    isDesert: false,
   ),
   Biome(
     name: 'Uzbekistan 🇺🇿',
@@ -132,6 +137,7 @@ final List<Biome> kBiomes = [
     landmark: LandmarkType.minaret,
     foliageDensity: 0.3,
     distanceKm: 700.0,
+    isDesert: true,
   ),
   Biome(
     name: 'Turkmenistan 🇹🇲',
@@ -150,6 +156,7 @@ final List<Biome> kBiomes = [
     landmark: LandmarkType.fortWall,
     foliageDensity: 0.1,
     distanceKm: 1100.0,
+    isDesert: true,
   ),
   Biome(
     name: 'Iran 🇮🇷',
@@ -168,6 +175,7 @@ final List<Biome> kBiomes = [
     landmark: LandmarkType.iwan,
     foliageDensity: 0.5,
     distanceKm: 100.0, // Final destination - short segment
+    isDesert: true,
   ),
 ];
 
