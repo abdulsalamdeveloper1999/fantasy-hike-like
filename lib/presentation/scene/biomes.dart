@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum LandmarkType { yurt, pagoda, mosque, horse, jaggedRock, flower }
+enum LandmarkType { pagoda, yurt, mosque, jaggedRock, flower, horse }
 
 class BiomeColors {
   final Color skyTop;
@@ -11,7 +11,6 @@ class BiomeColors {
   final Color nearHills;
   final Color foreground;
   final Color rocks;
-  final Color mist;
 
   const BiomeColors({
     required this.skyTop,
@@ -22,7 +21,6 @@ class BiomeColors {
     required this.nearHills,
     required this.foreground,
     required this.rocks,
-    this.mist = const Color(0x33FFFFFF),
   });
 
   static BiomeColors lerp(BiomeColors a, BiomeColors b, double t) {
@@ -35,7 +33,6 @@ class BiomeColors {
       nearHills: Color.lerp(a.nearHills, b.nearHills, t)!,
       foreground: Color.lerp(a.foreground, b.foreground, t)!,
       rocks: Color.lerp(a.rocks, b.rocks, t)!,
-      mist: Color.lerp(a.mist, b.mist, t)!,
     );
   }
 }
@@ -47,7 +44,7 @@ class Biome {
   final int seed;
   final LandmarkType landmark;
   final double foliageDensity;
-  final double distanceKm; // Distance in kilometers for this country segment
+  final double distanceKm;
   final bool hasRocks;
   final bool hasFoliage;
 
@@ -74,16 +71,16 @@ final List<Biome> kBiomes = [
       farMountains: Color(0xFFD4E8D4),
       midHills: Color(0xFFA8C896),
       nearHills: Color(0xFF8FBC8F),
-      foreground: Colors.black,
-      rocks: const Color(0xFF050505),
+      foreground: const Color(0xFF1F2A1F),
+      rocks: Color(0xFF050505),
     ),
     roughness: 0.3,
     seed: 101,
     landmark: LandmarkType.yurt,
     foliageDensity: 0.0,
     hasRocks: true,
-    hasFoliage: false, // Rocky landscape and yurts
-    distanceKm: 1200.0,
+    hasFoliage: false,
+    distanceKm: 120.0,
   ),
   Biome(
     name: 'China 🇨🇳',
@@ -94,16 +91,16 @@ final List<Biome> kBiomes = [
       farMountains: Color(0xFFD4A86C),
       midHills: Color(0xFFB8784C),
       nearHills: Color(0xFF9A5F3C),
-      foreground: Colors.black,
-      rocks: const Color(0xFF050505),
+      foreground: const Color(0xFF1F2A1F),
+      rocks: Color(0xFF050505),
     ),
     roughness: 0.6,
     seed: 111,
-    landmark: LandmarkType.pagoda, // Will draw big trees
-    foliageDensity: 0.8, // Big trees and shrubbery
+    landmark: LandmarkType.pagoda,
+    foliageDensity: 0.8,
     hasRocks: false,
     hasFoliage: true,
-    distanceKm: 1000.0,
+    distanceKm: 100.0,
   ),
   Biome(
     name: 'Kazakhstan 🇰🇿',
@@ -114,16 +111,16 @@ final List<Biome> kBiomes = [
       farMountains: Color(0xFFC8C896),
       midHills: Color(0xFF9CA878),
       nearHills: Color(0xFF7A8C5A),
-      foreground: Colors.black,
-      rocks: const Color(0xFF050505),
+      foreground: const Color(0xFF1F2A1F),
+      rocks: Color(0xFF050505),
     ),
     roughness: 0.4,
     seed: 121,
-    landmark: LandmarkType.horse, // Horses and yurts
+    landmark: LandmarkType.horse,
     foliageDensity: 0.7,
     hasRocks: false,
     hasFoliage: true,
-    distanceKm: 900.0,
+    distanceKm: 90.0,
   ),
   Biome(
     name: 'Uzbekistan 🇺🇿',
@@ -134,16 +131,16 @@ final List<Biome> kBiomes = [
       farMountains: Color(0xFFD1B072),
       midHills: Color(0xFFC2913C),
       nearHills: Color(0xFFA67117),
-      foreground: Colors.black,
-      rocks: const Color(0xFF050505),
+      foreground: const Color(0xFF1F2A1F),
+      rocks: Color(0xFF050505),
     ),
     roughness: 0.2,
     seed: 131,
-    landmark: LandmarkType.mosque, // Mosques / buildings
+    landmark: LandmarkType.mosque,
     foliageDensity: 0.3,
     hasRocks: true,
     hasFoliage: true,
-    distanceKm: 800.0,
+    distanceKm: 80.0,
   ),
   Biome(
     name: 'Turkmenistan 🇹🇲',
@@ -154,16 +151,16 @@ final List<Biome> kBiomes = [
       farMountains: Color(0xFFC8B898),
       midHills: Color(0xFFA88868),
       nearHills: Color(0xFF8A6848),
-      foreground: Colors.black,
-      rocks: const Color(0xFF050505),
+      foreground: const Color(0xFF1F2A1F),
+      rocks: Color(0xFF050505),
     ),
     roughness: 0.9,
     seed: 141,
-    landmark: LandmarkType.jaggedRock, // Jagged rocks
+    landmark: LandmarkType.jaggedRock,
     foliageDensity: 0.0,
     hasRocks: true,
     hasFoliage: false,
-    distanceKm: 800.0,
+    distanceKm: 80.0,
   ),
   Biome(
     name: 'Iran 🇮🇷',
@@ -174,16 +171,16 @@ final List<Biome> kBiomes = [
       farMountains: Color(0xFF5A5A5A),
       midHills: Color(0xFF484848),
       nearHills: Color(0xFF3A3A3A),
-      foreground: Colors.black,
-      rocks: const Color(0xFF050505),
+      foreground: const Color(0xFF1F2A1F),
+      rocks: Color(0xFF050505),
     ),
     roughness: 1.6,
     seed: 151,
-    landmark: LandmarkType.flower, // Shrubbery and flowers
+    landmark: LandmarkType.flower,
     foliageDensity: 0.9,
     hasRocks: false,
     hasFoliage: true,
-    distanceKm: 1000.0,
+    distanceKm: 100.0,
   ),
 ];
 

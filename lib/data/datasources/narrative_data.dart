@@ -577,10 +577,9 @@ class NarrativeData {
   };
 
   static String getNarrative(double distanceKm) {
-    // Each segment is 10km. We want the narrative for the CURRENT segment.
-    // E.g. 0-10km uses key 10.
-    // 10.1-20km uses key 20.
-    int segmentKey = ((distanceKm / 10).ceil() * 10).toInt();
+    // Each segment in the map is 10 units apart (10, 20, 30...).
+    // In our new 570km scale, each KM corresponds to one narrative segment.
+    int segmentKey = (distanceKm.ceil() * 10).toInt();
     if (segmentKey < 10) segmentKey = 10;
     if (segmentKey > 5700) segmentKey = 5700;
 

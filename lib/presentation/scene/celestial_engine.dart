@@ -28,17 +28,34 @@ class CelestialEngine {
 
     // Parabolic path for sun/moon
     final sunX = progress;
-    final sunY = 1.0 - math.sin(progress * math.pi);
+    // Lowered start (1.4) to stay hidden behind mountains longer
+    final sunY = 1.4 - (math.sin(progress * math.pi) * 1.4);
+
+    // Calculate sun opacity (alpha)
+    // 0.0 - 0.05: Completely hidden
+    // 0.05 - 0.15: Fade in
+    double sunAlpha = 1.0;
+    if (progress < 0.15) {
+      sunAlpha = ((progress - 0.05) / 0.1).clamp(0.0, 1.0);
+    } else if (progress > 0.85) {
+      // Fade out at night
+      sunAlpha = ((0.95 - progress) / 0.1).clamp(0.0, 1.0);
+    }
+
+    // --- Atmospheric Micro-Pacing ---
+    // Change things subtly every 1km
+    final kmProgress = distance / 1000.0;
+
+    // 1. Mid-Stop Wobble: Shifting the horizon density point between 0.4 and 0.5
+    final skyMidStop = 0.45 + (math.sin(kmProgress * math.pi * 2) * 0.05);
+
+    // 2. Color Shift: Subtly brighten/dim colors based on km distance
+    final atmosShift = (math.cos(kmProgress * math.pi) * 10.0).toInt();
 
     Color top, mid, bot, glowColor;
     bool isDay;
 
     // Transition Regions
-    // 0.0 - 0.25: Dawn (Night -> Biome Day)
-    // 0.25 - 0.55: Day (Full Biome Colors)
-    // 0.55 - 0.75: Sunset (Biome Day -> Deep Sunset)
-    // 0.75 - 1.0: Night (Deep Sunset -> Night)
-
     if (progress < 0.25) {
       final t = _smooth(progress / 0.25);
       top = Color.lerp(nightTop, biome.skyTop, t)!;
@@ -68,14 +85,31 @@ class CelestialEngine {
       isDay = false;
     }
 
+    // Apply Subtle Micro-Pacing Color Shift
+    top = _applyShift(top, atmosShift);
+    mid = _applyShift(mid, atmosShift);
+    bot = _applyShift(bot, atmosShift);
+
     return CelestialState(
       progress: progress,
       sunPosition: Offset(sunX, sunY),
+      sunAlpha: sunAlpha,
       skyTop: top,
       skyMid: mid,
       skyBot: bot,
+      skyMidStop: skyMidStop,
       glowColor: glowColor,
       isDay: isDay,
+    );
+  }
+
+  // Helper to nudge colors slightly for variety
+  static Color _applyShift(Color color, int shift) {
+    return Color.fromARGB(
+      color.alpha,
+      (color.red + shift).clamp(0, 255),
+      (color.green + shift).clamp(0, 255),
+      (color.blue + shift).clamp(0, 255),
     );
   }
 }
@@ -83,18 +117,22 @@ class CelestialEngine {
 class CelestialState {
   final double progress;
   final Offset sunPosition;
+  final double sunAlpha;
   final Color skyTop;
   final Color skyMid;
   final Color skyBot;
+  final double skyMidStop;
   final Color glowColor;
   final bool isDay;
 
   const CelestialState({
     required this.progress,
     required this.sunPosition,
+    required this.sunAlpha,
     required this.skyTop,
     required this.skyMid,
     required this.skyBot,
+    required this.skyMidStop,
     required this.glowColor,
     required this.isDay,
   });

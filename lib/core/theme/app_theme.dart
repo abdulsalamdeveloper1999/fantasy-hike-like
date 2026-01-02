@@ -12,12 +12,10 @@ class AppTheme {
         primary: AppColors.gold,
         secondary: AppColors.shireGreen,
         surface: AppColors.surface,
-        background: AppColors.background,
         error: AppColors.lavaRed,
         onPrimary: Colors.black,
         onSecondary: Colors.white,
         onSurface: AppColors.textPrimary,
-        onBackground: AppColors.textPrimary,
         onError: Colors.white,
       ),
 

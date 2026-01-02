@@ -2,7 +2,7 @@ import '../../domain/entities/route_waypoint.dart';
 
 class SilkRoadData {
   static const double totalRouteDistance =
-      5700.0; // Align with narrative segments
+      570.0; // Scaled to match 570.00km request
 
   static final List<RouteWaypoint> waypoints = [
     const RouteWaypoint(
@@ -21,7 +21,7 @@ class SilkRoadData {
       emoji: '🇨🇳',
       latitude: 40.4319,
       longitude: 116.5704,
-      distanceFromStart: 1800,
+      distanceFromStart: 180,
     ),
     const RouteWaypoint(
       id: 2,
@@ -30,7 +30,7 @@ class SilkRoadData {
       emoji: '🇰🇿',
       latitude: 43.2220,
       longitude: 76.8512,
-      distanceFromStart: 3000,
+      distanceFromStart: 300,
     ),
     const RouteWaypoint(
       id: 3,
@@ -39,7 +39,7 @@ class SilkRoadData {
       emoji: '🇹🇲',
       latitude: 37.6650,
       longitude: 62.1900,
-      distanceFromStart: 3900,
+      distanceFromStart: 390,
     ),
     const RouteWaypoint(
       id: 4,
@@ -48,7 +48,7 @@ class SilkRoadData {
       emoji: '🇮🇷',
       latitude: 35.6892,
       longitude: 51.3890,
-      distanceFromStart: 4600,
+      distanceFromStart: 460,
     ),
     const RouteWaypoint(
       id: 5,
@@ -57,7 +57,7 @@ class SilkRoadData {
       emoji: '🏛️',
       latitude: 32.6539,
       longitude: 51.6660,
-      distanceFromStart: 5700,
+      distanceFromStart: 570,
     ),
   ];
 }

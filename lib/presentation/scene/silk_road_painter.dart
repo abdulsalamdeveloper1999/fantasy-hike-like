@@ -146,6 +146,9 @@ class SilkRoadMapPainter extends CustomPainter {
         scaleY,
         colors.skyBottom,
         celestial.skyBot,
+        biome: currentBiomeIndex == 0 || currentBiomeIndex == 2
+            ? kBiomes[currentBiomeIndex]
+            : null,
       ),
     );
 
@@ -155,8 +158,13 @@ class SilkRoadMapPainter extends CustomPainter {
       size,
       totalCamX,
       1.0, // foreground factor
-      (offset) =>
-          _drawForegroundStrip(canvas, size, groundPts, Colors.black, scaleY),
+      (offset) => _drawForegroundStrip(
+        canvas,
+        size,
+        groundPts,
+        colors.foreground,
+        scaleY,
+      ),
     );
 
     // 4.5. Scenery (trees/plants or rocks)
@@ -181,7 +189,7 @@ class SilkRoadMapPainter extends CustomPainter {
       groundPts,
       size.width * 0.35, // Fixed screen position at 35% from left
       scaleY,
-      Colors.black,
+      colors.foreground,
     );
   }
 
@@ -225,7 +233,7 @@ class SilkRoadMapPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [celestial.skyTop, celestial.skyMid, celestial.skyBot],
-        stops: const [0.0, 0.45, 0.9],
+        stops: [0.0, celestial.skyMidStop, 0.9],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
 
@@ -238,32 +246,37 @@ class SilkRoadMapPainter extends CustomPainter {
     final sunX = celestial.sunPosition.dx * size.width;
     final sunY = 50 + celestial.sunPosition.dy * (size.height * 0.4);
 
-    final bloomPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          Colors.white.withOpacity(0.3),
-          celestial.glowColor.withOpacity(0.0),
-        ],
-      ).createShader(Rect.fromCircle(center: Offset(sunX, sunY), radius: 100));
-    canvas.drawCircle(Offset(sunX, sunY), 120, bloomPaint);
+    if (celestial.sunAlpha > 0) {
+      final bloomPaint = Paint()
+        ..shader =
+            RadialGradient(
+              colors: [
+                Colors.white.withOpacity(0.3 * celestial.sunAlpha),
+                celestial.glowColor.withOpacity(0.0),
+              ],
+            ).createShader(
+              Rect.fromCircle(center: Offset(sunX, sunY), radius: 100),
+            );
+      canvas.drawCircle(Offset(sunX, sunY), 120, bloomPaint);
 
-    // Dynamic celestial body color based on time of day
-    Color celestialColor;
-    if (celestial.isDay) {
-      // Sun: yellow-orange during day
-      celestialColor = const Color(0xFFFDB813);
-    } else {
-      // Moon: pale blue-white during night
-      celestialColor = const Color(0xFFE8F4F8);
+      // Dynamic celestial body color based on time of day
+      Color celestialColor;
+      if (celestial.isDay) {
+        // Sun: yellow-orange during day
+        celestialColor = const Color(0xFFFDB813);
+      } else {
+        // Moon: pale blue-white during night
+        celestialColor = const Color(0xFFE8F4F8);
+      }
+
+      canvas.drawCircle(
+        Offset(sunX, sunY),
+        celestial.isDay ? 20 : 16,
+        Paint()
+          ..color = celestialColor.withOpacity(celestial.sunAlpha)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
     }
-
-    canvas.drawCircle(
-      Offset(sunX, sunY),
-      celestial.isDay ? 20 : 16,
-      Paint()
-        ..color = celestialColor
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
   }
 
   void _drawStars(Canvas canvas, Size size, double progress) {
@@ -319,8 +332,9 @@ class SilkRoadMapPainter extends CustomPainter {
     double factor,
     double scaleY,
     Color mist,
-    Color skyHorizon,
-  ) {
+    Color skyHorizon, {
+    Biome? biome,
+  }) {
     if (points.isEmpty) return;
     // No internal translation, we rely on _drawTiledLayer's canvas.translate
 
@@ -374,7 +388,118 @@ class SilkRoadMapPainter extends CustomPainter {
       ).createShader(Rect.fromLTWH(0, 0, 1, size.height));
     canvas.drawPath(path, hazePaint);
 
-    canvas.drawPath(path, hazePaint);
+    // Draw background landmarks for specific biomes (Mongolia/Kazakhstan)
+    if (biome != null) {
+      _drawBackgroundScenery(canvas, points, scaleY, biome, factor);
+    }
+  }
+
+  void _drawBackgroundScenery(
+    Canvas canvas,
+    List<Offset> terrain,
+    double scaleY,
+    Biome biome,
+    double factor,
+  ) {
+    // Only draw on specific hills, use seed for stability
+    // Nearer hills (higher factor) get more clusters
+    final clusterCount = (factor > 0.4) ? 2 : 1;
+    final silhouetteColor = Colors.black.withOpacity(
+      0.4,
+    ); // Stronger silhouette visibility
+
+    for (int i = 0; i < clusterCount; i++) {
+      final double centerX =
+          (TerrainEngine.pseudoRandom(
+                    biome.seed + i * 99 + (factor * 100).toInt(),
+                  ) *
+                  0.8 +
+              0.1) *
+          TerrainEngine.kWorldWidth;
+
+      // Draw a small cluster/herd (2-3 items) for a richer look
+      final clusterSize = (biome.seed + i) % 2 + 2;
+      for (int k = 0; k < clusterSize; k++) {
+        final double offsetX = (k - clusterSize / 2) * 50.0 * factor;
+        final double x = centerX + offsetX;
+        final groundY = TerrainEngine.getGroundVisualY(terrain, x, scaleY);
+
+        // Increased base scale for better visibility (0.6 -> 1.2) - Twice bigger as requested
+        final bgScale = 1.2 * factor;
+
+        // Alternate horses and yurts in the cluster
+        if ((i + k) % 2 == 0) {
+          _drawHorseOutline(canvas, x, groundY, bgScale, silhouetteColor);
+        } else {
+          _drawYurtOutline(canvas, x, groundY, bgScale, silhouetteColor);
+        }
+      }
+    }
+  }
+
+  void _drawHorseOutline(
+    Canvas canvas,
+    double x,
+    double y,
+    double scale,
+    Color color,
+  ) {
+    final p = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill; // Silhouette style for better contrast
+
+    // Simplified outline path for horse
+    final body = Rect.fromCenter(
+      center: Offset(x, y - 8 * scale),
+      width: 20 * scale,
+      height: 10 * scale,
+    );
+    canvas.drawOval(body, p);
+
+    // Neck/Head
+    final head = Path();
+    head.moveTo(x + 6 * scale, y - 10 * scale);
+    head.lineTo(x + 12 * scale, y - 18 * scale);
+    head.lineTo(x + 16 * scale, y - 16 * scale);
+    head.lineTo(x + 8 * scale, y - 6 * scale);
+    canvas.drawPath(head, p);
+
+    // Legs
+    canvas.drawLine(
+      Offset(x - 6 * scale, y - 6 * scale),
+      Offset(x - 8 * scale, y),
+      p,
+    );
+    canvas.drawLine(
+      Offset(x + 6 * scale, y - 6 * scale),
+      Offset(x + 8 * scale, y),
+      p,
+    );
+  }
+
+  void _drawYurtOutline(
+    Canvas canvas,
+    double x,
+    double y,
+    double scale,
+    Color color,
+  ) {
+    final p = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final w = 24.0 * scale;
+    final h = 10.0 * scale;
+    final r = 14.0 * scale;
+
+    // Base
+    canvas.drawRect(Rect.fromLTWH(x - w / 2, y - h, w, h), p);
+
+    // Roof
+    final roof = Path();
+    roof.moveTo(x - w / 2, y - h);
+    roof.quadraticBezierTo(x, y - h - r, x + w / 2, y - h);
+    canvas.drawPath(roof, p);
   }
 
   void _drawForegroundStrip(
@@ -897,19 +1022,17 @@ class SilkRoadMapPainter extends CustomPainter {
     Color color,
   ) {
     // Use smooth base terrain instead of jittery grass to stop vibration
-    // Sunk deeper (12.0) to ensure feet are ALWAYS inside the black terrain even on hills
-    final y = (TerrainEngine.sampleTerrainY(terrain, worldX) * scaleY) + 12.0;
+    // Sunk deeper to ensure feet are ALWAYS inside the black terrain even on hills
+    final y = (TerrainEngine.sampleTerrainY(terrain, worldX) * scaleY) + 16.0;
     final x = screenX;
 
     if (characterImage != null) {
-      // Draw character image
-      final imageWidth = 40.0;
-      final imageHeight = 40.0;
+      // Draw character image - DOUBLED SIZE (80x80)
+      final imageWidth = 80.0;
+      final imageHeight = 80.0;
 
-      // Add walking animation - bounce UP from the ground
-      // Using abs() ensures we don't clip into the ground
-      // and subtraction moves it upwards in Flutter's coordinate system
-      final bounce = -(math.sin(walkCycle).abs() * 3.0);
+      // Add walking animation - scaled bounce for larger character
+      final bounce = -(math.sin(walkCycle).abs() * 6.0);
 
       // Calculate destination rectangle - Bottom aligned to ground + bounce
       final dst = Rect.fromLTWH(
@@ -932,46 +1055,49 @@ class SilkRoadMapPainter extends CustomPainter {
         Paint()..filterQuality = FilterQuality.high,
       );
     } else {
-      // Fallback: Draw stick figure
-      // Add same walking vertical bounce to stick figure
-      final bounce = -(math.sin(walkCycle).abs() * 3.0);
+      // Fallback: Draw stick figure - ALL DIMENSIONS DOUBLED
+      final bounce = -(math.sin(walkCycle).abs() * 6.0);
       final drawY = y + bounce;
 
-      // Subtle visibility glow
+      // Subtle visibility glow - Scaled up
       canvas.drawCircle(
-        Offset(x, drawY - 18),
-        16,
+        Offset(x, drawY - 36),
+        32,
         Paint()
           ..color = Colors.white.withOpacity(0.08)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
       );
 
-      // Body (stick man/silhouette)
+      // Body (stick man/silhouette) - Doubled dimensions
       final p = Paint()..color = color;
-      canvas.drawCircle(Offset(x, drawY - 28), 6, p); // Head
-      canvas.drawRect(Rect.fromLTWH(x - 4, drawY - 22, 8, 14), p); // Body
+      canvas.drawCircle(Offset(x, drawY - 56), 12, p); // Head (6 -> 12)
+      canvas.drawRect(
+        Rect.fromLTWH(x - 8, drawY - 44, 16, 28),
+        p,
+      ); // Body (8x14 -> 16x28)
 
-      final l = math.sin(walkCycle) * 8;
+      final l = math.sin(walkCycle) * 16; // Stride (8 -> 16)
       canvas.drawLine(
-        Offset(x - 2, drawY - 8),
-        Offset(x - 2 + l, y), // Note: Legs stay pinned to literal y (ground)
+        Offset(x - 4, drawY - 16),
+        Offset(x - 4 + l, y),
         p
-          ..strokeWidth = 4
+          ..strokeWidth =
+              8 // 4 -> 8
           ..strokeCap = StrokeCap.round,
       );
       canvas.drawLine(
-        Offset(x + 2, drawY - 8),
-        Offset(x + 2 - l, y),
+        Offset(x + 4, drawY - 16),
+        Offset(x + 4 - l, y),
         p
-          ..strokeWidth = 4
+          ..strokeWidth = 8
           ..strokeCap = StrokeCap.round,
       );
 
-      // Stick
+      // Stick - Doubled
       canvas.drawLine(
-        Offset(x + 6, drawY - 18),
-        Offset(x + 10 + l * 0.5, y),
-        p..strokeWidth = 2,
+        Offset(x + 12, drawY - 36),
+        Offset(x + 20 + l * 0.5, y),
+        p..strokeWidth = 4,
       );
     }
   }

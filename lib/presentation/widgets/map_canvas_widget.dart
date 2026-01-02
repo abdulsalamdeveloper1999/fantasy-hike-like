@@ -11,7 +11,10 @@ class MapCanvasWidget extends StatefulWidget {
   final double distanceTraveled;
   final String selectedCharacter;
   final Function(double meters)? onProgressUpdate;
+  final Function(double delta)?
+  onDistanceDelta; // New callback for interactive scrolling
   final double movementSpeed; // Meters per frame
+  final int jumpCounter; // New: increments to trigger instant snap
 
   const MapCanvasWidget({
     super.key,
@@ -19,7 +22,9 @@ class MapCanvasWidget extends StatefulWidget {
     required this.distanceTraveled,
     required this.selectedCharacter,
     this.onProgressUpdate,
+    this.onDistanceDelta,
     this.movementSpeed = 2.0, // Default to natural walk
+    this.jumpCounter = 0,
   });
 
   // Static helper to get current country name
@@ -65,9 +70,9 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
   // Logic State
   double _animatedDistance = 0.0;
   double _walkCycle = 0.0;
-  double _viewOffset = 0.0; // New state for interactive review
   int _currentBiomeIndex = 0;
   ui.Image? _characterImage;
+  bool _isDragging = false;
 
   @override
   void initState() {
@@ -113,28 +118,28 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
     // Also generate the target biome terrain for smooth transitions
     final targetBiome = kBiomes[1 % kBiomes.length];
     _terrainTo = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.55,
+      baseY: TerrainEngine.kWorldHeight * 0.65, // 0.55 -> 0.65
       roughness: targetBiome.roughness,
       seed: targetBiome.seed,
       segments: 400,
       octaves: 5,
     );
     _nearHillsTo = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.45,
+      baseY: TerrainEngine.kWorldHeight * 0.55, // 0.45 -> 0.55
       roughness: targetBiome.roughness * 0.85,
       seed: targetBiome.seed + 5,
       segments: 300,
       octaves: 4,
     );
     _midHillsTo = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.42,
+      baseY: TerrainEngine.kWorldHeight * 0.52, // 0.42 -> 0.52
       roughness: targetBiome.roughness * 0.65,
       seed: targetBiome.seed + 10,
       segments: 200,
       octaves: 4,
     );
     _farMountainsTo = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.35,
+      baseY: TerrainEngine.kWorldHeight * 0.45, // 0.35 -> 0.45
       roughness: targetBiome.roughness * 0.5,
       seed: targetBiome.seed + 20,
       segments: 300,
@@ -149,7 +154,7 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
 
     // Generate terrain based on biome-specific parameters
     _terrainFrom = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.55,
+      baseY: TerrainEngine.kWorldHeight * 0.65, // 0.55 -> 0.65
       roughness: biome.roughness,
       seed: biome.seed,
       segments: 400,
@@ -157,7 +162,7 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
     );
 
     _nearHillsFrom = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.45,
+      baseY: TerrainEngine.kWorldHeight * 0.55, // 0.45 -> 0.55
       roughness: biome.roughness * 0.85,
       seed: biome.seed + 5,
       segments: 300,
@@ -165,7 +170,7 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
     );
 
     _midHillsFrom = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.42,
+      baseY: TerrainEngine.kWorldHeight * 0.52, // 0.42 -> 0.52
       roughness: biome.roughness * 0.65,
       seed: biome.seed + 10,
       segments: 200,
@@ -173,7 +178,7 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
     );
 
     _farMountainsFrom = TerrainEngine.generateTerrain(
-      baseY: TerrainEngine.kWorldHeight * 0.35,
+      baseY: TerrainEngine.kWorldHeight * 0.45, // 0.35 -> 0.45
       roughness: biome.roughness * 0.5,
       seed: biome.seed + 20,
       segments: 300,
@@ -240,13 +245,46 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
     }
   }
 
+  @override
+  void didUpdateWidget(MapCanvasWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If jumpCounter changed, snap visually and reset biome state
+    if (widget.jumpCounter != oldWidget.jumpCounter) {
+      _animatedDistance = widget.distanceTraveled;
+
+      // Update biome state immediately so we don't "slide" through biomes
+      final biomeInfo = _getBiomeAtDistance(_animatedDistance);
+      _currentBiomeIndex = biomeInfo.currentIndex;
+      _generateTerrainForBiome(_currentBiomeIndex); // Force regenerate
+    }
+  }
+
   void _tick() {
+    // If we're dragging, the visual position is already synced in the gesture handler
+    if (_isDragging) {
+      // Still update biome stuff
+      final biomeInfo = _getBiomeAtDistance(_animatedDistance);
+      _updateBiomeTransition(biomeInfo.currentIndex, biomeInfo.targetIndex);
+      setState(() {});
+      return;
+    }
+
     final distDiff = widget.distanceTraveled - _animatedDistance;
-    if (distDiff.abs() > 0.1) {
+    final absDiff = distDiff.abs();
+
+    if (absDiff > 0.1) {
+      // Dynamic Speed: If scrolling far, catch up much faster
+      // Normal speed is widget.movementSpeed. Scale up if distance is large.
+      final gap = absDiff;
+      double speedMultiplier = 1.0;
+      if (gap > 10.0) {
+        speedMultiplier = (gap / 10.0).clamp(1.0, 10.0); // Sprint up to 10x
+      }
+
       // Step Pulse: Character pushes off the ground
       final stepPulse = (math.sin(_walkCycle * math.pi * 2).abs() + 0.3);
 
-      final maxDeltaPerFrame = widget.movementSpeed;
+      final maxDeltaPerFrame = widget.movementSpeed * speedMultiplier;
       final step =
           distDiff.clamp(-maxDeltaPerFrame, maxDeltaPerFrame) * stepPulse;
 
@@ -254,14 +292,18 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
       widget.onProgressUpdate?.call(_animatedDistance);
 
       // Animation Sync: Stride length increases with speed to prevent blurring
-      final strideLength = (widget.movementSpeed * 30.0).clamp(2.0, 100.0);
+      // For very high speeds (catch-up), we increase stride even more
+      final strideLength = (maxDeltaPerFrame * 30.0).clamp(2.0, 200.0);
       final cycleIncrement = (step.abs() / strideLength);
 
-      // Cap frequency at ~4 cycles per second (8 steps/sec) to keep visual clarity
-      _walkCycle += cycleIncrement.clamp(0.0, 0.08);
+      // Cap frequency at ~5 cycles per second (10 steps/sec) to keep visual clarity
+      _walkCycle += cycleIncrement.clamp(0.0, 0.1);
     } else {
-      _animatedDistance = widget.distanceTraveled;
-      widget.onProgressUpdate?.call(_animatedDistance);
+      // Final settle: only sync if there's a tiny drift, but don't call every frame
+      if (absDiff > 0.001) {
+        _animatedDistance = widget.distanceTraveled;
+        widget.onProgressUpdate?.call(_animatedDistance);
+      }
       _walkCycle += 0.015; // Idle breath
     }
 
@@ -319,10 +361,8 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
 
   @override
   Widget build(BuildContext context) {
-    final visualDistance = (_animatedDistance - _viewOffset).clamp(
-      0.0,
-      double.infinity,
-    );
+    // Character always stays centered or we move the "camera" by updating distance
+    final visualDistance = _animatedDistance;
 
     // Get biome information based on actual distances
     final biomeInfo = _getBiomeAtDistance(visualDistance);
@@ -331,22 +371,38 @@ class _MapCanvasWidgetState extends State<MapCanvasWidget>
     final biomeTransitionT = biomeInfo.transitionT;
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: (_) {
+        setState(() => _isDragging = true);
+      },
       onHorizontalDragUpdate: (details) {
-        setState(() {
-          //details.primaryDelta > 0 is drag right (look back)
-          //details.primaryDelta < 0 is drag left (return to character)
+        // details.primaryDelta > 0 is drag right
+        // Sensitivity: 1 pixel = 10 meters for "Express Scroll"
+        const double sensitivity = 10.0;
+        final delta = -details.primaryDelta! * sensitivity;
 
-          // Increased sensitivity for "Fast Scroll"
-          // In previous version sensitivity was 0.1 (10 pixels = 1 meter)
-          // Now 1 pixel = 1 meter, so dragging across screen (e.g. 400px) moves 400m
-          const double sensitivity = 1.0;
-          _viewOffset -= details.primaryDelta! * sensitivity;
+        // Manual Sync: Update visual state instantly
+        _animatedDistance += delta;
 
-          // Clamp _viewOffset:
-          // 0.0: Exactly at character
-          // _animatedDistance: At the very start
-          _viewOffset = _viewOffset.clamp(0.0, _animatedDistance);
-        });
+        // Sync walk animation manually during drag
+        // Stride length constant for manual feel
+        const strideLength = 40.0;
+        _walkCycle += (delta.abs() / strideLength);
+
+        // Notify parent to stay in sync with the visual snap
+        widget.onDistanceDelta?.call(delta);
+
+        // Update biome logic immediately for visual continuity
+        final biomeInfo = _getBiomeAtDistance(_animatedDistance);
+        _updateBiomeTransition(biomeInfo.currentIndex, biomeInfo.targetIndex);
+
+        setState(() {});
+      },
+      onHorizontalDragEnd: (_) {
+        setState(() => _isDragging = false);
+      },
+      onHorizontalDragCancel: () {
+        setState(() => _isDragging = false);
       },
       child: Container(
         decoration: BoxDecoration(

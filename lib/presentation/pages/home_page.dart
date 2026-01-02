@@ -20,6 +20,15 @@ class _HomePageState extends State<HomePage> {
   double _currentMovementSpeed = 2.0; // Default Hike speed
   String selectedCharacter = 'default';
   int _selectedIndex = 0;
+  int _jumpCounter = 0;
+
+  void _jumpToCountry(double km) {
+    setState(() {
+      distanceTraveled = km * 1000.0;
+      _visualDistanceMeters = distanceTraveled; // Instant UI sync
+      _jumpCounter++; // Trigger visual snap
+    });
+  }
 
   @override
   void initState() {
@@ -40,10 +49,19 @@ class _HomePageState extends State<HomePage> {
               distanceTraveled: distanceTraveled,
               selectedCharacter: selectedCharacter,
               movementSpeed: _currentMovementSpeed,
+              jumpCounter: _jumpCounter,
               onProgressUpdate: (meters) {
                 if (mounted) {
                   setState(() => _visualDistanceMeters = meters);
                 }
+              },
+              onDistanceDelta: (delta) {
+                setState(() {
+                  distanceTraveled = (distanceTraveled + delta).clamp(
+                    0.0,
+                    getTotalJourneyDistance() * 1000.0,
+                  );
+                });
               },
             ),
           ),
@@ -75,7 +93,9 @@ class _HomePageState extends State<HomePage> {
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        (_visualDistanceMeters / 1000).toStringAsFixed(1),
+                        _visualDistanceMeters < 1000
+                            ? _visualDistanceMeters.toInt().toString()
+                            : (_visualDistanceMeters / 1000).toStringAsFixed(2),
                         style: const TextStyle(
                           fontSize: 32, // Larger
                           fontWeight: FontWeight.w900, // Extra bold
@@ -85,7 +105,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'KM', // Units changed to KM
+                        _visualDistanceMeters < 1000 ? 'M' : 'KM',
                         style: TextStyle(
                           color: const Color(0xFFFFD700).withOpacity(0.6),
                           fontSize: 20,
@@ -183,6 +203,30 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
               ],
+            ),
+          ),
+
+          // 4. Instant Country Jump Sidebar (Left)
+          Positioned(
+            left: 16,
+            top: 50,
+            bottom: 250,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _JumpButton(label: '🇲🇳', onTap: () => _jumpToCountry(0)),
+                  const SizedBox(height: 8),
+                  _JumpButton(label: '🇨🇳', onTap: () => _jumpToCountry(120)),
+                  const SizedBox(height: 8),
+                  _JumpButton(label: '🇰🇿', onTap: () => _jumpToCountry(220)),
+                  const SizedBox(height: 8),
+                  _JumpButton(label: '🇺🇿', onTap: () => _jumpToCountry(310)),
+                  const SizedBox(height: 8),
+                  _JumpButton(label: '🇹🇲', onTap: () => _jumpToCountry(390)),
+                  const SizedBox(height: 8),
+                  _JumpButton(label: '🇮🇷', onTap: () => _jumpToCountry(470)),
+                ],
+              ),
             ),
           ),
         ],
@@ -297,6 +341,38 @@ class _TestButton extends StatelessWidget {
           ],
         ),
         child: Icon(icon, color: Colors.white70, size: 22),
+      ),
+    );
+  }
+}
+
+class _JumpButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _JumpButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 20)),
       ),
     );
   }
