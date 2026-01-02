@@ -70,7 +70,8 @@ class _HomePageState extends State<HomePage> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 105, // Lowered back down relative to new lower horizon
+            bottom:
+                40, // Lowered to clear the visual path for the character and horses
             child: IgnorePointer(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
