@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'core/routing/app_router.dart';
-import 'core/theme/app_theme.dart';
+import 'package:step_journey/features/snore/presentation/pages/snore_recorder_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,12 +10,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appRouter = AppRouter();
-
-    return MaterialApp.router(
-      title: 'Step Journey',
-      theme: AppTheme.darkTheme,
-      routerConfig: appRouter.config(),
+    return MaterialApp(
+      title: 'Snore Recorder Demo',
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF121B22),
+      ),
+      home: const SnoreRecorderPage(),
       debugShowCheckedModeBanner: false,
     );
   }
