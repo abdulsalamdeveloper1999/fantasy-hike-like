@@ -162,7 +162,10 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SnoreScoreGauge(score: controller.snoreScore),
+              GestureDetector(
+                onTap: () => _showScoreEditDialog(context, controller),
+                child: SnoreScoreGauge(score: controller.snoreScore),
+              ),
               const SizedBox(width: 40),
               Expanded(
                 child: Column(
@@ -273,67 +276,112 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
 
   Widget _buildRecordingsList(SnoreController controller) {
     if (controller.recordings.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.nightlight_round, color: Colors.white12, size: 80),
-            const SizedBox(height: 16),
-            Text(
-              'No recordings yet',
-              style: TextStyle(color: SnoreColors.textSecondary),
+      return Column(
+        children: [
+          _buildRecordingsHeader(context, controller),
+          const SizedBox(height: 50),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.nightlight_round, color: Colors.white12, size: 80),
+                const SizedBox(height: 16),
+                Text(
+                  'No recordings yet',
+                  style: TextStyle(color: SnoreColors.textSecondary),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     final grouped = _groupRecordingsByDate(controller.recordings);
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 150),
-      itemCount: grouped.length,
-      itemBuilder: (context, index) {
-        final date = grouped.keys.elementAt(index);
-        final dateRecordings = grouped[date]!;
+    return Column(
+      children: [
+        _buildRecordingsHeader(context, controller),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 150),
+            itemCount: grouped.length,
+            itemBuilder: (context, index) {
+              final date = grouped.keys.elementAt(index);
+              final dateRecordings = grouped[date]!;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-              child: Text(
-                DateFormat('EEEE, MMMM d, yyyy').format(date).toUpperCase(),
-                style: const TextStyle(
-                  color: SnoreColors.accent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-            ...dateRecordings.map((recording) {
-              final isPlaying = controller.currentlyPlayingId == recording.id;
-              double progress = 0.0;
-              if (isPlaying && controller.currentDuration.inMilliseconds > 0) {
-                progress =
-                    controller.currentPosition.inMilliseconds /
-                    controller.currentDuration.inMilliseconds;
-              }
-              return RecordingListItem(
-                recording: recording,
-                isPlaying: isPlaying,
-                progress: progress,
-                onPlay: () => controller.playRecording(recording),
-                onDelete: () => controller.deleteRecording(recording.id),
-                onFavorite: () => controller.toggleFavorite(recording.id),
-                onEditTime: (newTime) =>
-                    controller.updateTimestamp(recording.id, newTime),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                    child: Text(
+                      DateFormat(
+                        'EEEE, MMMM d, yyyy',
+                      ).format(date).toUpperCase(),
+                      style: const TextStyle(
+                        color: SnoreColors.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  ...dateRecordings.map((recording) {
+                    final isPlaying =
+                        controller.currentlyPlayingId == recording.id;
+                    double progress = 0.0;
+                    if (isPlaying &&
+                        controller.currentDuration.inMilliseconds > 0) {
+                      progress =
+                          controller.currentPosition.inMilliseconds /
+                          controller.currentDuration.inMilliseconds;
+                    }
+                    return RecordingListItem(
+                      recording: recording,
+                      isPlaying: isPlaying,
+                      progress: progress,
+                      onPlay: () => controller.playRecording(recording),
+                      onDelete: () => controller.deleteRecording(recording.id),
+                      onFavorite: () => controller.toggleFavorite(recording.id),
+                      onEditTime: (newTime) =>
+                          controller.updateTimestamp(recording.id, newTime),
+                    );
+                  }),
+                ],
               );
-            }),
-          ],
-        );
-      },
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecordingsHeader(
+    BuildContext context,
+    SnoreController controller,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'RECORDINGS (${controller.recordings.length})',
+            style: const TextStyle(
+              color: SnoreColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add, color: SnoreColors.primary),
+            onPressed: () => _showAddRecordingDialog(context, controller),
+            tooltip: 'Add Manual Recording',
+          ),
+        ],
+      ),
     );
   }
 
@@ -360,6 +408,176 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
       return '${duration.inMinutes}m';
     }
     return '${duration.inSeconds}s';
+  }
+
+  void _showScoreEditDialog(BuildContext context, SnoreController controller) {
+    double currentScore = controller.snoreScore;
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: SnoreColors.surface,
+            title: const Text(
+              'Edit SnoreScore',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  currentScore.round().toString(),
+                  style: const TextStyle(
+                    color: SnoreColors.primary,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Slider(
+                  value: currentScore,
+                  min: 0,
+                  max: 100,
+                  activeColor: SnoreColors.primary,
+                  onChanged: (val) => setState(() => currentScore = val),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.white54),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: SnoreColors.primary,
+                ),
+                onPressed: () {
+                  controller.updateSnoreScore(currentScore);
+                  Navigator.pop(context);
+                },
+                child: const Text(
+                  'Save',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAddRecordingDialog(
+    BuildContext context,
+    SnoreController controller,
+  ) async {
+    TimeOfDay selectedTime = TimeOfDay.now();
+    int durationSeconds = 30;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: SnoreColors.surface,
+            title: const Text(
+              'Add Recording',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text(
+                    'Time',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  trailing: Text(
+                    selectedTime.format(context),
+                    style: const TextStyle(
+                      color: SnoreColors.primary,
+                      fontSize: 16,
+                    ),
+                  ),
+                  onTap: () async {
+                    final t = await showTimePicker(
+                      context: context,
+                      initialTime: selectedTime,
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: SnoreColors.primary,
+                              onPrimary: Colors.white,
+                              surface: SnoreColors.surface,
+                              onSurface: Colors.white,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (t != null) setState(() => selectedTime = t);
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Duration (seconds)',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                Slider(
+                  value: durationSeconds.toDouble(),
+                  min: 5,
+                  max: 120,
+                  divisions: 23,
+                  label: '$durationSeconds s',
+                  activeColor: SnoreColors.primary,
+                  onChanged: (val) =>
+                      setState(() => durationSeconds = val.toInt()),
+                ),
+                Text(
+                  '$durationSeconds seconds',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.white54),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: SnoreColors.primary,
+                ),
+                onPressed: () {
+                  final now = DateTime.now();
+                  final timestamp = DateTime(
+                    now.year,
+                    now.month,
+                    now.day,
+                    selectedTime.hour,
+                    selectedTime.minute,
+                  );
+                  controller.addManualRecording(
+                    timestamp,
+                    Duration(seconds: durationSeconds),
+                  );
+                  Navigator.pop(context);
+                },
+                child: const Text('Add', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _showSleepNoteDialog(BuildContext context, SnoreController controller) {

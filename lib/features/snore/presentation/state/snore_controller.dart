@@ -33,12 +33,20 @@ class SnoreController extends ChangeNotifier {
     milliseconds: (totalActiveDuration.inMilliseconds * 0.12).toInt(),
   ); // Estimated 12% for demo
 
+  double? _manualSnoreScore;
+
   double get snoreScore {
+    if (_manualSnoreScore != null) return _manualSnoreScore!;
     if (_recordings.isEmpty) return 0;
     // Mock score calculation: base 10 + recordings + weighted duration
     double score =
         10.0 + (_recordings.length * 2) + (totalActiveDuration.inSeconds / 30);
     return score.clamp(0, 100);
+  }
+
+  void updateSnoreScore(double score) {
+    _manualSnoreScore = score;
+    notifyListeners();
   }
 
   String _sleepNote = '';
@@ -103,6 +111,18 @@ class SnoreController extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error starting recording: $e');
     }
+  }
+
+  void addManualRecording(DateTime timestamp, Duration duration) {
+    final recording = RecordingModel(
+      id: DateTime.now().toIso8601String(),
+      path: 'manual_entry', // Placeholder for manual entries
+      timestamp: timestamp,
+      duration: duration,
+    );
+    _recordings.insert(0, recording);
+    _recordings.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    notifyListeners();
   }
 
   Future<void> stopRecording() async {
