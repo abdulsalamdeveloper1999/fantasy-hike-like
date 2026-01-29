@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:auto_route/auto_route.dart';
+import 'package:step_journey/core/widgets/app_drawer.dart';
 import 'package:step_journey/features/snore/core/snore_colors.dart';
 import 'package:step_journey/features/snore/domain/recording_model.dart';
 import 'package:step_journey/features/snore/presentation/state/snore_controller.dart';
 import 'package:step_journey/features/snore/presentation/widgets/snore_score_gauge.dart';
-import 'package:step_journey/features/snore/presentation/widgets/summary_card.dart';
 import 'package:step_journey/features/snore/presentation/widgets/recording_list_item.dart';
 
+@RoutePage()
 class SnoreRecorderPage extends StatefulWidget {
   const SnoreRecorderPage({super.key});
 
@@ -45,12 +47,12 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
       create: (_) => SnoreController(),
       child: Scaffold(
         backgroundColor: SnoreColors.background,
-        drawer: const Drawer(),
+        drawer: const AppDrawer(),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           title: Text(
-            DateFormat('EEEE, MMM d').format(DateTime.now()),
+            'Snore AI',
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 18,
@@ -83,6 +85,25 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         floatingActionButton: Consumer<SnoreController>(
           builder: (context, controller, child) {
+            // Show error message if present
+            if (controller.errorMessage != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(controller.errorMessage!),
+                    backgroundColor: Colors.redAccent,
+                    duration: const Duration(seconds: 4),
+                    action: SnackBarAction(
+                      label: 'Dismiss',
+                      textColor: Colors.white,
+                      onPressed: () => controller.clearError(),
+                    ),
+                  ),
+                );
+                controller.clearError();
+              });
+            }
+
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -157,87 +178,7 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
   Widget _buildHeader(SnoreController controller) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SnoreScoreGauge(score: controller.snoreScore),
-              const SizedBox(width: 40),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SummaryCard(
-                      title: 'Active Time',
-                      value: _formatDuration(controller.totalActiveDuration),
-                      icon: Icons.mic_none,
-                    ),
-                    SummaryCard(
-                      title: 'Time Snoring',
-                      value: _formatDuration(controller.totalSnoreDuration),
-                      subValue:
-                          '| ${controller.totalActiveDuration.inSeconds > 0 ? (controller.totalSnoreDuration.inSeconds * 100 ~/ controller.totalActiveDuration.inSeconds) : 0}%',
-                      icon: Icons.graphic_eq,
-                    ),
-                    const SummaryCard(
-                      title: 'BreathFlow',
-                      value: 'Upgrade',
-                      icon: Icons.air,
-                      isLocked: true,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => _showSleepNoteDialog(context, controller),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        controller.sleepNote.isEmpty
-                            ? 'Sleep Notes'
-                            : 'Edit Note',
-                        style: const TextStyle(
-                          color: SnoreColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.add_circle_outline,
-                        color: SnoreColors.primary,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                  if (controller.sleepNote.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        controller.sleepNote,
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: Center(child: SnoreScoreGauge(score: controller.snoreScore)),
     );
   }
 
@@ -250,8 +191,7 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
           _buildTabItem('Quiet', SnoreColors.quiet),
           _buildTabItem('Light', SnoreColors.light),
           _buildTabItem('Loud', SnoreColors.loud),
-          _buildTabItem('Epic', SnoreColors.epic),
-          _buildTabItem('Noise', SnoreColors.noise),
+          _buildTabItem('WTF', SnoreColors.epic),
         ],
       ),
     );
@@ -353,63 +293,5 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
       grouped[date]!.add(r);
     }
     return grouped;
-  }
-
-  String _formatDuration(Duration duration) {
-    if (duration.inMinutes >= 1) {
-      return '${duration.inMinutes}m';
-    }
-    return '${duration.inSeconds}s';
-  }
-
-  void _showSleepNoteDialog(BuildContext context, SnoreController controller) {
-    final textController = TextEditingController(text: controller.sleepNote);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: SnoreColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: SnoreColors.primary, width: 1.5),
-        ),
-        title: const Text('Sleep Notes', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'How did you sleep?',
-            hintStyle: TextStyle(color: Colors.white30),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.white24),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: SnoreColors.primary),
-            ),
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: SnoreColors.primary,
-            ),
-            onPressed: () {
-              controller.updateSleepNote(textController.text);
-              Navigator.pop(context);
-            },
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
   }
 }

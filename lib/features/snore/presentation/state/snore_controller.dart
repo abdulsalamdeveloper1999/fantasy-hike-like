@@ -44,6 +44,14 @@ class SnoreController extends ChangeNotifier {
   String _sleepNote = '';
   String get sleepNote => _sleepNote;
 
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   void updateSleepNote(String note) {
     _sleepNote = note;
     notifyListeners();
@@ -80,28 +88,41 @@ class SnoreController extends ChangeNotifier {
 
   Future<void> startRecording() async {
     try {
-      if (await _recorder.hasPermission()) {
-        final directory = await getApplicationDocumentsDirectory();
-        final path = p.join(
-          directory.path,
-          'recording_${DateTime.now().millisecondsSinceEpoch}.m4a',
-        );
+      _errorMessage = null; // Clear any previous errors
 
-        await _recorder.start(
-          const RecordConfig(
-            encoder: AudioEncoder.aacLc,
-            sampleRate: 44100,
-            numChannels: 1,
-          ),
-          path: path,
-        );
-        debugPrint('Started recording at: $path');
-        _startRecordingTime = DateTime.now();
-        _isRecording = true;
+      final hasPermission = await _recorder.hasPermission();
+
+      if (!hasPermission) {
+        _errorMessage =
+            'Microphone permission denied. Please enable it in Settings.';
+        debugPrint('Microphone permission denied');
         notifyListeners();
+        return;
       }
+
+      final directory = await getApplicationDocumentsDirectory();
+      final path = p.join(
+        directory.path,
+        'recording_${DateTime.now().millisecondsSinceEpoch}.m4a',
+      );
+
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          sampleRate: 44100,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+      debugPrint('Started recording at: $path');
+      _startRecordingTime = DateTime.now();
+      _isRecording = true;
+      notifyListeners();
     } catch (e) {
       debugPrint('Error starting recording: $e');
+      _errorMessage = 'Failed to start recording. Please try again.';
+      _isRecording = false;
+      notifyListeners();
     }
   }
 
