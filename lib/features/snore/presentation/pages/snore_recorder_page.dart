@@ -3,11 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:step_journey/features/snore/core/snore_colors.dart';
-import 'package:step_journey/features/snore/domain/recording_model.dart';
 import 'package:step_journey/features/snore/presentation/state/snore_controller.dart';
 import 'package:step_journey/features/snore/presentation/widgets/snore_score_gauge.dart';
-import 'package:step_journey/features/snore/presentation/widgets/summary_card.dart';
 import 'package:step_journey/features/snore/presentation/widgets/recording_list_item.dart';
+import 'package:step_journey/features/snore/presentation/widgets/stat_card.dart';
 
 class SnoreRecorderPage extends StatefulWidget {
   const SnoreRecorderPage({super.key});
@@ -16,26 +15,14 @@ class SnoreRecorderPage extends StatefulWidget {
   State<SnoreRecorderPage> createState() => _SnoreRecorderPageState();
 }
 
-class _SnoreRecorderPageState extends State<SnoreRecorderPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
+class _SnoreRecorderPageState extends State<SnoreRecorderPage> {
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -44,370 +31,306 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
     return ChangeNotifierProvider(
       create: (_) => SnoreController(),
       child: Scaffold(
-        backgroundColor: SnoreColors.background,
-        drawer: const Drawer(),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            DateFormat('EEEE, MMM d').format(DateTime.now()),
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(
-                Icons.settings_outlined,
-                color: SnoreColors.primary,
-              ),
-              onPressed: () {},
-            ),
-          ],
-        ),
+        backgroundColor: const Color(0xFF0F141A), // Darker background
         body: Consumer<SnoreController>(
           builder: (context, controller, child) {
-            return Column(
-              children: [
-                const SizedBox(height: 20),
-                _buildHeader(controller),
-                const SizedBox(height: 30),
-                _buildTabs(),
-                Expanded(child: _buildRecordingsList(controller)),
-              ],
-            );
-          },
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: Consumer<SnoreController>(
-          builder: (context, controller, child) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!controller.isRecording && controller.recordings.isEmpty)
-                  const Text(
-                    'Tap to start recording',
-                    style: TextStyle(
-                      color: SnoreColors.textSecondary,
-                      fontSize: 14,
+            return SafeArea(
+              child: CustomScrollView(
+                slivers: [
+                  // App Bar / Logo
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 16, bottom: 8),
+                      child: Center(
+                        child: Image.asset(
+                          'assets/snoreAI.png',
+                          height: 48,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Text(
+                                'Snore AI',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                ),
+                              ),
+                        ),
+                      ),
                     ),
                   ),
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () {
-                    if (controller.isRecording) {
-                      controller.stopRecording();
-                    } else {
-                      controller.startRecording();
-                    }
-                  },
-                  child: ScaleTransition(
-                    scale: controller.isRecording
-                        ? _pulseAnimation
-                        : const AlwaysStoppedAnimation(1.0),
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: controller.isRecording
-                            ? Colors.redAccent
-                            : SnoreColors.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                (controller.isRecording
-                                        ? Colors.redAccent
-                                        : SnoreColors.primary)
-                                    .withOpacity(0.3),
-                            blurRadius: 20,
-                            spreadRadius: 5,
+
+                  // Header Row
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 3,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: Colors.blueAccent,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _showBedTimeEditDialog(
+                                context,
+                                controller,
+                                isSessionStart: true,
+                              ),
+                              child: Text(
+                                'Session at ${DateFormat('h:mm a').format(controller.sessionStartTime)}',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.redAccent,
+                              size: 24,
+                            ),
+                            onPressed: () {}, // Clear session logic
                           ),
                         ],
                       ),
-                      child: Icon(
-                        controller.isRecording ? Icons.stop : Icons.mic,
-                        color: Colors.white,
-                        size: 36,
+                    ),
+                  ),
+
+                  // Score Gauge
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: () =>
+                              _showScoreEditDialog(context, controller),
+                          child: SnoreScoreGauge(
+                            score: controller.snoreScore,
+                            label: controller.snoreScoreLabel,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (controller.isRecording)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      'Recording...',
-                      style: GoogleFonts.inter(
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.bold,
+
+                  // Stats Row
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          StatCard(
+                            title: 'Snore Ratio',
+                            value: '${controller.snoreRatio.toInt()}%',
+                            icon: Icons.trending_up,
+                            onTap: () =>
+                                _showRatioEditDialog(context, controller),
+                          ),
+                          StatCard(
+                            title: 'Sleep Time',
+                            value: _formatFullDuration(controller.sleepTime),
+                            icon: Icons.dark_mode_outlined,
+                            onTap: () =>
+                                _showSleepTimeEditDialog(context, controller),
+                          ),
+                          StatCard(
+                            title: 'Want to Bed',
+                            value: DateFormat(
+                              'h:mm a',
+                            ).format(controller.wantToBed),
+                            icon: Icons.bed_outlined,
+                            onTap: () =>
+                                _showBedTimeEditDialog(context, controller),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-              ],
+
+                  // Factors Section
+                  _buildSectionHeader(
+                    'FACTORS',
+                    () => _showFactorsEditDialog(context, controller),
+                  ),
+                  _buildChipList(controller.factors, 'None'),
+
+                  // Sleep Aids Section
+                  _buildSectionHeader(
+                    'SLEEP AIDS',
+                    () => _showSleepAidsEditDialog(context, controller),
+                  ),
+                  _buildChipList(controller.sleepAids, 'None'),
+
+                  // Recordings Header
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 32, 20, 8),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.mic,
+                            color: SnoreColors.textSecondary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${controller.recordings.length} RECORDINGS',
+                            style: GoogleFonts.inter(
+                              color: SnoreColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Recordings List
+                  _buildSliverRecordingsList(controller),
+
+                  const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+                ],
+              ),
             );
           },
         ),
+        floatingActionButton: _buildFAB(),
       ),
     );
   }
 
-  Widget _buildHeader(SnoreController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: () => _showScoreEditDialog(context, controller),
-                child: SnoreScoreGauge(score: controller.snoreScore),
-              ),
-              const SizedBox(width: 40),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SummaryCard(
-                      title: 'Active Time',
-                      value: _formatDuration(controller.totalActiveDuration),
-                      icon: Icons.mic_none,
-                    ),
-                    SummaryCard(
-                      title: 'Time Snoring',
-                      value: _formatDuration(controller.totalSnoreDuration),
-                      subValue:
-                          '| ${controller.totalActiveDuration.inSeconds > 0 ? (controller.totalSnoreDuration.inSeconds * 100 ~/ controller.totalActiveDuration.inSeconds) : 0}%',
-                      icon: Icons.graphic_eq,
-                    ),
-                    const SummaryCard(
-                      title: 'BreathFlow',
-                      value: 'Upgrade',
-                      icon: Icons.air,
-                      isLocked: true,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => _showSleepNoteDialog(context, controller),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        controller.sleepNote.isEmpty
-                            ? 'Sleep Notes'
-                            : 'Edit Note',
-                        style: const TextStyle(
-                          color: SnoreColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.add_circle_outline,
-                        color: SnoreColors.primary,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                  if (controller.sleepNote.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        controller.sleepNote,
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabs() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          _buildTabItem('Quiet', SnoreColors.quiet),
-          _buildTabItem('Light', SnoreColors.light),
-          _buildTabItem('Loud', SnoreColors.loud),
-          _buildTabItem('Epic', SnoreColors.epic),
-          _buildTabItem('Noise', SnoreColors.noise),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabItem(String label, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: color, width: 2)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: SnoreColors.textSecondary, fontSize: 13),
-      ),
-    );
-  }
-
-  Widget _buildRecordingsList(SnoreController controller) {
-    if (controller.recordings.isEmpty) {
-      return Column(
-        children: [
-          _buildRecordingsHeader(context, controller),
-          const SizedBox(height: 50),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.nightlight_round, color: Colors.white12, size: 80),
-                const SizedBox(height: 16),
-                Text(
-                  'No recordings yet',
-                  style: TextStyle(color: SnoreColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    final grouped = _groupRecordingsByDate(controller.recordings);
-
-    return Column(
-      children: [
-        _buildRecordingsHeader(context, controller),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 150),
-            itemCount: grouped.length,
-            itemBuilder: (context, index) {
-              final date = grouped.keys.elementAt(index);
-              final dateRecordings = grouped[date]!;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                    child: Text(
-                      DateFormat(
-                        'EEEE, MMMM d, yyyy',
-                      ).format(date).toUpperCase(),
-                      style: const TextStyle(
-                        color: SnoreColors.accent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                  ...dateRecordings.map((recording) {
-                    final isPlaying =
-                        controller.currentlyPlayingId == recording.id;
-                    double progress = 0.0;
-                    if (isPlaying &&
-                        controller.currentDuration.inMilliseconds > 0) {
-                      progress =
-                          controller.currentPosition.inMilliseconds /
-                          controller.currentDuration.inMilliseconds;
-                    }
-                    return RecordingListItem(
-                      recording: recording,
-                      isPlaying: isPlaying,
-                      progress: progress,
-                      onPlay: () => controller.playRecording(recording),
-                      onDelete: () => controller.deleteRecording(recording.id),
-                      onFavorite: () => controller.toggleFavorite(recording.id),
-                      onEditTime: (newTime) =>
-                          controller.updateTimestamp(recording.id, newTime),
-                    );
-                  }),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecordingsHeader(
-    BuildContext context,
-    SnoreController controller,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'RECORDINGS (${controller.recordings.length})',
-            style: const TextStyle(
+  Widget _buildSectionHeader(String title, VoidCallback onTap) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 32, 20, 8),
+        child: GestureDetector(
+          onTap: onTap,
+          child: Text(
+            title,
+            style: GoogleFonts.inter(
               color: SnoreColors.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
+              letterSpacing: 1.2,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.add, color: SnoreColors.primary),
-            onPressed: () => _showAddRecordingDialog(context, controller),
-            tooltip: 'Add Manual Recording',
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Map<DateTime, List<RecordingModel>> _groupRecordingsByDate(
-    List<RecordingModel> recordings,
-  ) {
-    final Map<DateTime, List<RecordingModel>> grouped = {};
-    for (var r in recordings) {
-      final date = DateTime(
-        r.timestamp.year,
-        r.timestamp.month,
-        r.timestamp.day,
-      );
-      if (!grouped.containsKey(date)) {
-        grouped[date] = [];
-      }
-      grouped[date]!.add(r);
-    }
-    return grouped;
+  Widget _buildChipList(List<String> items, String emptyLabel) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: items.isEmpty
+            ? Text(
+                emptyLabel,
+                style: GoogleFonts.inter(color: Colors.white24, fontSize: 14),
+              )
+            : Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: items
+                    .map(
+                      (item) => Chip(
+                        label: Text(
+                          item,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        ),
+                        backgroundColor: Colors.white.withOpacity(0.05),
+                        side: BorderSide.none,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    )
+                    .toList(),
+              ),
+      ),
+    );
   }
 
-  String _formatDuration(Duration duration) {
-    if (duration.inMinutes >= 1) {
-      return '${duration.inMinutes}m';
+  Widget _buildSliverRecordingsList(SnoreController controller) {
+    if (controller.recordings.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.only(top: 40),
+          child: Center(
+            child: Text(
+              'No recordings',
+              style: TextStyle(color: Colors.white24),
+            ),
+          ),
+        ),
+      );
     }
-    return '${duration.inSeconds}s';
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((context, index) {
+        final recording = controller.recordings[index];
+        final isPlaying = controller.currentlyPlayingId == recording.id;
+        double progress = 0.0;
+        if (isPlaying && controller.currentDuration.inMilliseconds > 0) {
+          progress =
+              controller.currentPosition.inMilliseconds /
+              controller.currentDuration.inMilliseconds;
+        }
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: RecordingListItem(
+            recording: recording,
+            isPlaying: isPlaying,
+            progress: progress,
+            onPlay: () => controller.playRecording(recording),
+            onDelete: () => controller.deleteRecording(recording.id),
+            onFavorite: () => controller.toggleFavorite(recording.id),
+            onEditTime: (newTime) =>
+                controller.updateTimestamp(recording.id, newTime),
+          ),
+        );
+      }, childCount: controller.recordings.length),
+    );
+  }
+
+  Widget _buildFAB() {
+    return Consumer<SnoreController>(
+      builder: (context, controller, child) {
+        return FloatingActionButton(
+          onPressed: () {
+            if (controller.isRecording) {
+              controller.stopRecording();
+            } else {
+              controller.startRecording();
+            }
+          },
+          backgroundColor: controller.isRecording
+              ? Colors.redAccent
+              : SnoreColors.primary,
+          child: Icon(controller.isRecording ? Icons.stop : Icons.mic),
+        );
+      },
+    );
+  }
+
+  String _formatFullDuration(Duration duration) {
+    int hours = duration.inHours;
+    int minutes = duration.inMinutes.remainder(60);
+    return '${hours}h ${minutes}m';
   }
 
   void _showScoreEditDialog(BuildContext context, SnoreController controller) {
@@ -417,21 +340,18 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            backgroundColor: SnoreColors.surface,
+            backgroundColor: const Color(0xFF1A1F26),
             title: const Text(
-              'Edit SnoreScore',
+              'Edit Snore Score',
               style: TextStyle(color: Colors.white),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  currentScore.round().toString(),
-                  style: const TextStyle(
-                    color: SnoreColors.primary,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+                SnoreScoreGauge(
+                  score: currentScore,
+                  label: controller.snoreScoreLabel,
+                  size: 100,
                 ),
                 Slider(
                   value: currentScore,
@@ -445,23 +365,14 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.white54),
-                ),
+                child: const Text('Cancel'),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: SnoreColors.primary,
-                ),
+              TextButton(
                 onPressed: () {
                   controller.updateSnoreScore(currentScore);
                   Navigator.pop(context);
                 },
-                child: const Text(
-                  'Save',
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: const Text('Save'),
               ),
             ],
           );
@@ -470,108 +381,49 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
     );
   }
 
-  void _showAddRecordingDialog(
-    BuildContext context,
-    SnoreController controller,
-  ) async {
-    TimeOfDay selectedTime = TimeOfDay.now();
-    int durationSeconds = 30;
-
-    await showDialog(
+  void _showRatioEditDialog(BuildContext context, SnoreController controller) {
+    double currentRatio = controller.snoreRatio;
+    showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            backgroundColor: SnoreColors.surface,
+            backgroundColor: const Color(0xFF1A1F26),
             title: const Text(
-              'Add Recording',
+              'Edit Snore Ratio',
               style: TextStyle(color: Colors.white),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ListTile(
-                  title: const Text(
-                    'Time',
-                    style: TextStyle(color: Colors.white70),
+                Text(
+                  '${currentRatio.toInt()}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
                   ),
-                  trailing: Text(
-                    selectedTime.format(context),
-                    style: const TextStyle(
-                      color: SnoreColors.primary,
-                      fontSize: 16,
-                    ),
-                  ),
-                  onTap: () async {
-                    final t = await showTimePicker(
-                      context: context,
-                      initialTime: selectedTime,
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.dark(
-                              primary: SnoreColors.primary,
-                              onPrimary: Colors.white,
-                              surface: SnoreColors.surface,
-                              onSurface: Colors.white,
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (t != null) setState(() => selectedTime = t);
-                  },
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Duration (seconds)',
-                  style: TextStyle(color: Colors.white70),
                 ),
                 Slider(
-                  value: durationSeconds.toDouble(),
-                  min: 5,
-                  max: 120,
-                  divisions: 23,
-                  label: '$durationSeconds s',
-                  activeColor: SnoreColors.primary,
-                  onChanged: (val) =>
-                      setState(() => durationSeconds = val.toInt()),
-                ),
-                Text(
-                  '$durationSeconds seconds',
-                  style: const TextStyle(color: Colors.white),
+                  value: currentRatio,
+                  min: 0,
+                  max: 100,
+                  activeColor: Colors.blueAccent,
+                  onChanged: (val) => setState(() => currentRatio = val),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.white54),
-                ),
+                child: const Text('Cancel'),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: SnoreColors.primary,
-                ),
+              TextButton(
                 onPressed: () {
-                  final now = DateTime.now();
-                  final timestamp = DateTime(
-                    now.year,
-                    now.month,
-                    now.day,
-                    selectedTime.hour,
-                    selectedTime.minute,
-                  );
-                  controller.addManualRecording(
-                    timestamp,
-                    Duration(seconds: durationSeconds),
-                  );
+                  controller.updateSnoreRatio(currentRatio);
                   Navigator.pop(context);
                 },
-                child: const Text('Add', style: TextStyle(color: Colors.white)),
+                child: const Text('Save'),
               ),
             ],
           );
@@ -580,54 +432,154 @@ class _SnoreRecorderPageState extends State<SnoreRecorderPage>
     );
   }
 
-  void _showSleepNoteDialog(BuildContext context, SnoreController controller) {
-    final textController = TextEditingController(text: controller.sleepNote);
+  void _showSleepTimeEditDialog(
+    BuildContext context,
+    SnoreController controller,
+  ) async {
+    final TimeOfDay? time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: controller.sleepTime.inHours,
+        minute: controller.sleepTime.inMinutes.remainder(60),
+      ),
+      helpText: 'SELECT SLEEP DURATION',
+    );
+    if (time != null) {
+      controller.updateSleepTime(
+        Duration(hours: time.hour, minutes: time.minute),
+      );
+    }
+  }
+
+  void _showBedTimeEditDialog(
+    BuildContext context,
+    SnoreController controller, {
+    bool isSessionStart = false,
+  }) async {
+    final DateTime initialDate = isSessionStart
+        ? controller.sessionStartTime
+        : controller.wantToBed;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialDate),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: SnoreColors.primary,
+              onPrimary: Colors.white,
+              surface: SnoreColors.surface,
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (time != null) {
+      final newTime = DateTime(
+        initialDate.year,
+        initialDate.month,
+        initialDate.day,
+        time.hour,
+        time.minute,
+      );
+      if (isSessionStart) {
+        controller.updateSessionStartTime(newTime);
+      } else {
+        controller.updateWantToBed(newTime);
+      }
+    }
+  }
+
+  void _showFactorsEditDialog(
+    BuildContext context,
+    SnoreController controller,
+  ) {
+    _showMultiSelectDialog(
+      context,
+      'FACTORS',
+      ['Alcohol', 'Caffeine', 'Late Meal', 'Stress', 'Exercise', 'Tobacco'],
+      controller.factors,
+      (selected) => controller.setFactors(selected),
+    );
+  }
+
+  void _showSleepAidsEditDialog(
+    BuildContext context,
+    SnoreController controller,
+  ) {
+    _showMultiSelectDialog(
+      context,
+      'SLEEP AIDS',
+      [
+        'Eye Mask',
+        'Earplugs',
+        'White Noise',
+        'Humidifier',
+        'Melatonin',
+        'Mouth Tape',
+      ],
+      controller.sleepAids,
+      (selected) => controller.setSleepAids(selected),
+    );
+  }
+
+  void _showMultiSelectDialog(
+    BuildContext context,
+    String title,
+    List<String> options,
+    List<String> initialSelected,
+    Function(List<String>) onSave,
+  ) {
+    List<String> selected = List.from(initialSelected);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: SnoreColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: SnoreColors.primary, width: 1.5),
-        ),
-        title: const Text('Sleep Notes', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'How did you sleep?',
-            hintStyle: TextStyle(color: Colors.white30),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.white24),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1F26),
+            title: Text(title, style: const TextStyle(color: Colors.white)),
+            content: SingleChildScrollView(
+              child: Wrap(
+                spacing: 8,
+                children: options.map((option) {
+                  final isSelected = selected.contains(option);
+                  return FilterChip(
+                    label: Text(option),
+                    selected: isSelected,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          selected.add(option);
+                        } else {
+                          selected.remove(option);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: SnoreColors.primary),
-            ),
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: SnoreColors.primary,
-            ),
-            onPressed: () {
-              controller.updateSleepNote(textController.text);
-              Navigator.pop(context);
-            },
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  onSave(selected);
+                  Navigator.pop(context);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
+
+  // Removed unused methods: _showAddRecordingDialog, _showSleepNoteDialog
 }

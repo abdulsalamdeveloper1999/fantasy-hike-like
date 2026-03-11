@@ -34,18 +34,67 @@ class SnoreController extends ChangeNotifier {
   ); // Estimated 12% for demo
 
   double? _manualSnoreScore;
+  double _snoreRatio = 4.0;
+  Duration _sleepTime = const Duration(hours: 6, minutes: 56);
+  DateTime _wantToBed = DateTime.now().subtract(const Duration(hours: 18)); // Mock default
+  DateTime _sessionStartTime = DateTime.now();
+  List<String> _factors = [];
+  List<String> _sleepAids = [];
 
   double get snoreScore {
     if (_manualSnoreScore != null) return _manualSnoreScore!;
     if (_recordings.isEmpty) return 0;
-    // Mock score calculation: base 10 + recordings + weighted duration
     double score =
         10.0 + (_recordings.length * 2) + (totalActiveDuration.inSeconds / 30);
     return score.clamp(0, 100);
   }
 
+  String get snoreScoreLabel {
+    double score = snoreScore;
+    if (score < 30) return 'GOOD';
+    if (score < 70) return 'FAIR';
+    return 'POOR';
+  }
+
+  double get snoreRatio => _snoreRatio;
+  Duration get sleepTime => _sleepTime;
+  DateTime get wantToBed => _wantToBed;
+  DateTime get sessionStartTime => _sessionStartTime;
+  List<String> get factors => _factors;
+  List<String> get sleepAids => _sleepAids;
+
   void updateSnoreScore(double score) {
     _manualSnoreScore = score;
+    notifyListeners();
+  }
+
+  void updateSnoreRatio(double ratio) {
+    _snoreRatio = ratio;
+    notifyListeners();
+  }
+
+  void updateSleepTime(Duration duration) {
+    _sleepTime = duration;
+    notifyListeners();
+  }
+
+  void updateWantToBed(DateTime time) {
+    _wantToBed = time;
+    notifyListeners();
+  }
+
+  void updateSessionStartTime(DateTime time) {
+    _sessionStartTime = time;
+    notifyListeners();
+  }
+
+  void setFactors(List<String> factors) {
+    _factors = factors;
+    notifyListeners();
+  }
+
+  void setSleepAids(List<String> aids) {
+    _sleepAids = aids;
     notifyListeners();
   }
 
@@ -58,6 +107,10 @@ class SnoreController extends ChangeNotifier {
   }
 
   SnoreController() {
+    // Initial mock data to match UI screenshot
+    final now = DateTime.now();
+    _wantToBed = DateTime(now.year, now.month, now.day, 1, 5);
+    _sessionStartTime = DateTime(now.year, now.month, now.day, 1, 5);
     _player.onPlayerComplete.listen((_) {
       debugPrint('Playback completed for: $_currentlyPlayingId');
       _currentlyPlayingId = null;

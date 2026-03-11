@@ -4,12 +4,23 @@ import 'package:step_journey/features/snore/core/snore_colors.dart';
 
 class SnoreScoreGauge extends StatelessWidget {
   final double score;
+  final String label;
   final double size;
 
-  const SnoreScoreGauge({super.key, required this.score, this.size = 150});
+  const SnoreScoreGauge({
+    super.key,
+    required this.score,
+    required this.label,
+    this.size = 120,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Determine color based on score: lower is better
+    final scoreColor = score < 30
+        ? SnoreColors.quiet
+        : (score < 70 ? Colors.orangeAccent : Colors.redAccent);
+
     return SizedBox(
       width: size,
       height: size,
@@ -18,27 +29,28 @@ class SnoreScoreGauge extends StatelessWidget {
         children: [
           CustomPaint(
             size: Size(size, size),
-            painter: _GaugePainter(score: score),
+            painter: _GaugePainter(score: score, activeColor: scoreColor),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 '${score.toInt()}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
+                style: TextStyle(
+                  color: scoreColor,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: scoreColor.withOpacity(0.8),
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
-          ),
-          Positioned(
-            bottom: size * 0.1,
-            child: const Text(
-              'Snore Score',
-              style: TextStyle(color: SnoreColors.textSecondary, fontSize: 12),
-            ),
           ),
         ],
       ),
@@ -48,8 +60,9 @@ class SnoreScoreGauge extends StatelessWidget {
 
 class _GaugePainter extends CustomPainter {
   final double score;
+  final Color activeColor;
 
-  _GaugePainter({required this.score});
+  _GaugePainter({required this.score, required this.activeColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -74,12 +87,7 @@ class _GaugePainter extends CustomPainter {
 
     // Draw score arc
     final scorePaint = Paint()
-      ..shader = const SweepGradient(
-        colors: [SnoreColors.quiet, SnoreColors.light, SnoreColors.loud],
-        stops: [0.0, 0.5, 1.0],
-        startAngle: pi * 0.75,
-        endAngle: pi * 2.25,
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..color = activeColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
