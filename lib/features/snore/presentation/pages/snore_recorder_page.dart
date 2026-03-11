@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:auto_route/auto_route.dart';
+
 import 'package:step_journey/features/snore/core/snore_colors.dart';
 import 'package:step_journey/features/snore/presentation/state/snore_controller.dart';
 import 'package:step_journey/features/snore/presentation/widgets/snore_score_gauge.dart';
 import 'package:step_journey/features/snore/presentation/widgets/recording_list_item.dart';
 import 'package:step_journey/features/snore/presentation/widgets/stat_card.dart';
 
+@RoutePage()
 class SnoreRecorderPage extends StatefulWidget {
   const SnoreRecorderPage({super.key});
 
