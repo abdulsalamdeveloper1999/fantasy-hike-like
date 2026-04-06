@@ -85,6 +85,10 @@ flutter:
   assets:
     - assets/character.png
     - assets/snoreAI.png
+    - assets/voyage/sky.png
+    - assets/voyage/mountains.png
+    - assets/voyage/water.png
+    - assets/voyage/ship.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
