@@ -84,9 +84,10 @@ class VoyageView extends StatelessWidget {
                 isRunning: isStarted,
               ),
 
-              // 2. The Ship (Now Interacted)
+              // 2. The Ship (Now Interacted & Perspective Driven)
               ShipWidget(
                 isRunning: isStarted,
+                progress: state.progress,
                 onTap: () => _showStopConfirmation(context),
               ),
 

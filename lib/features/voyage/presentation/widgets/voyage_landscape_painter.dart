@@ -19,6 +19,10 @@ class VoyageLandscapePainter extends CustomPainter {
     final horizonY = size.height * 0.455;
     final cx = size.width / 2;
 
+    // ── 0. SHIP ANCHORING (Synchronized with ShipWidget) ──────────
+    final shipScale = 1.0 - (progress * 0.75);
+    final currentShipY = size.height / 2 + 320 - (360 * progress);
+
     // ── 1. ANIMATED ROLLING HORIZON (Moodier Backdrop) ─────────────────────────
     final waterPath = Path();
     waterPath.moveTo(0, size.height);
@@ -68,8 +72,8 @@ class VoyageLandscapePainter extends CustomPainter {
     _drawNaturalOceanFill(canvas, size, horizonY);
     _drawCloudReflections(canvas, size, horizonY);
 
-    // ── 6. WAVY ILLUSTRATED WAKE (Modulated Intensity) ──────────────────
-    _drawWavyWake(canvas, size, cx);
+    // ── 6. WAVY ILLUSTRATED WAKE (Attached to Stern) ──────────────────
+    _drawWavyWake(canvas, size, cx, currentShipY + (60 * shipScale), shipScale);
 
     // ── 7. SURFACE MOTION ──────────────────────────
     _drawSurfaceShimmer(canvas, size, horizonY);
@@ -79,7 +83,7 @@ class VoyageLandscapePainter extends CustomPainter {
     _drawCausticPatterns(canvas, size, horizonY);
     _drawRollingWaveLayers(canvas, size, horizonY);
     _drawSunGlitterPath(canvas, size, horizonY);
-    _drawShipSpray(canvas, size, cx);
+    _drawShipSpray(canvas, size, cx, currentShipY - (20 * shipScale), shipScale);
     _drawDistantWaveFoam(canvas, size, horizonY);
     _drawColorTemperatureShift(canvas, size, horizonY);
 
@@ -87,7 +91,7 @@ class VoyageLandscapePainter extends CustomPainter {
     _drawSubsurfaceScattering(canvas, size, horizonY);
     _drawWaveShadows(canvas, size, horizonY);
     _drawDynamicFoamStreaks(canvas, size, horizonY);
-    _drawSplashParticles(canvas, size, cx);
+    _drawSplashParticles(canvas, size, cx, currentShipY - (10 * shipScale), shipScale);
     _drawUnderwaterHaze(canvas, size, horizonY);
   }
 
@@ -115,7 +119,6 @@ class VoyageLandscapePainter extends CustomPainter {
       ..color = Colors.black.withValues(alpha: 0.04 * sailingIntensity); // Slightly more shadow for depth
 
     for (int i = 0; i < 6; i++) {
-      final t = (animationValue * sailingIntensity * 0.5 + i / 6.0) % 1.0;
       final x =
           (size.width * (i / 6.0) + animationValue * sailingIntensity * 20) %
           size.width;
@@ -160,18 +163,17 @@ class VoyageLandscapePainter extends CustomPainter {
     }
   }
 
-  void _drawSplashParticles(Canvas canvas, Size size, double cx) {
-    final startY = size.height * 0.58;
+  void _drawSplashParticles(Canvas canvas, Size size, double cx, double startY, double scale) {
     final random = math.Random(888);
     final splashPaint = Paint()..style = PaintingStyle.fill;
 
     for (int i = 0; i < 30; i++) {
-      final t = (animationValue * sailingIntensity * 3 + i / 30.0) % 1.0;
+      final t = (animationValue * sailingIntensity * 4.5 + i / 30.0) % 1.0;
       final side = (i % 3 == 0) ? 1 : (i % 3 == 1 ? -1 : 0);
-      final x = cx + (side * (20 + t * 80 + random.nextDouble() * 30));
-      final y = startY - (t * t * 50) + random.nextDouble() * 20;
-      final opacity = (1 - t) * 0.4 * sailingIntensity; // Slightly reduced
-      final radius = (1 + random.nextDouble() * 2.5) * sailingIntensity;
+      final x = cx + (side * (20 + t * 80 + random.nextDouble() * 30)) * scale;
+      final y = startY - (t * t * 50 * scale) + random.nextDouble() * 20 * scale;
+      final opacity = (1 - t) * 0.4 * sailingIntensity;
+      final radius = (1 + random.nextDouble() * 2.5) * sailingIntensity * scale;
 
       if (opacity > 0) {
         canvas.drawCircle(
@@ -287,20 +289,19 @@ class VoyageLandscapePainter extends CustomPainter {
     }
   }
 
-  void _drawShipSpray(Canvas canvas, Size size, double cx) {
-    final startY = size.height * 0.62;
+  void _drawShipSpray(Canvas canvas, Size size, double cx, double startY, double scale) {
     final random = math.Random(777);
     final sprayPaint = Paint()..style = PaintingStyle.fill;
 
     if (sailingIntensity <= 0.1) return;
 
     for (int i = 0; i < 25; i++) {
-      final t = (animationValue * sailingIntensity * 2 + i / 25.0) % 1.0;
+      final t = (animationValue * sailingIntensity * 3.5 + i / 25.0) % 1.0;
       final side = (i % 2 == 0) ? 1 : -1;
-      final x = cx + (side * (10 + t * 60 + random.nextDouble() * 20));
-      final y = startY - (t * 30) + random.nextDouble() * 15;
-      final opacity = (1 - t) * 0.25 * sailingIntensity; // Reduced from 0.3
-      final radius = (1.5 + random.nextDouble() * 2) * sailingIntensity;
+      final x = cx + (side * (10 + t * 60 + random.nextDouble() * 20)) * scale;
+      final y = startY - (t * 30 * scale) + random.nextDouble() * 15 * scale;
+      final opacity = (1 - t) * 0.25 * sailingIntensity;
+      final radius = (1.5 + random.nextDouble() * 2) * sailingIntensity * scale;
 
       canvas.drawCircle(
         Offset(x, y),
@@ -375,7 +376,7 @@ class VoyageLandscapePainter extends CustomPainter {
     final reflectionPaint = Paint()
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
     for (int i = 0; i < 4; i++) {
-      final t = (animationValue * sailingIntensity * 1.0 + (i / 4.0) + 0.5) % 1.0;
+      final t = (animationValue * sailingIntensity * 1.8 + (i / 4.0) + 0.5) % 1.0;
       final side = (i % 2 == 0) ? 1 : -1;
       final x = cx + (side * (120 + i * 40) * (1.0 + t * 5));
       final y = horizonY + (t * (size.height - horizonY));
@@ -445,7 +446,7 @@ class VoyageLandscapePainter extends CustomPainter {
     final reflectionPaint = Paint()
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
     for (int i = 0; i < 12; i++) {
-      final t = (animationValue * sailingIntensity * 1.0 + i / 12.0) % 1.0;
+      final t = (animationValue * sailingIntensity * 1.8 + i / 12.0) % 1.0;
       final side = (i % 2 == 0) ? -1 : 1;
       final x = cx + (side * (80 + (i % 5) * 45) * (1.0 + t * 6));
       final y = horizonY + (t * (size.height - horizonY));
@@ -529,12 +530,12 @@ class VoyageLandscapePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0; // Thinner ripples
     for (int i = 0; i < 20; i++) {
-      final t = (animationValue * sailingIntensity * 1.0 + i / 20.0) % 1.0;
+      final t = (animationValue * sailingIntensity * 1.8 + i / 20.0) % 1.0;
       final x = (size.width * (i * 0.73) + math.sin(t * 3) * 120) % size.width;
       final y = horizonY + (t * (size.height - horizonY));
       if (i % 3 == 0) {
         final flicker = math.sin(animationValue * 10 * math.pi + i) * 0.5 + 0.5;
-        if (flicker > 0.85) // Less frequent whitecaps
+        if (flicker > 0.85) { // Less frequent whitecaps
           canvas.drawCircle(
             Offset(x, y),
             1.0 + t * 3,
@@ -543,6 +544,7 @@ class VoyageLandscapePainter extends CustomPainter {
                 alpha: (0.2 * flicker * (1.0 - (t - 0.5).abs() * 2)).clamp(0, 1),
               ),
           );
+        }
       }
       if (i % 2 == 0) {
         final rippleWidth = (25 + i * 10) * (0.5 + t * 4);
@@ -559,28 +561,27 @@ class VoyageLandscapePainter extends CustomPainter {
     }
   }
 
-  void _drawWavyWake(Canvas canvas, Size size, double cx) {
-    final startY = size.height * 0.64;
+  void _drawWavyWake(Canvas canvas, Size size, double cx, double startY, double scale) {
     final endY = size.height * 0.99;
     final wakePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.18 * sailingIntensity) // Reduced from 0.25
+      ..color = Colors.white.withValues(alpha: 0.18 * sailingIntensity)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0 // Slightly thinner
+      ..strokeWidth = 2.0 * scale
       ..strokeCap = StrokeCap.round;
 
     if (sailingIntensity <= 0.1) return;
 
     for (final layer in [0, 1, 2]) {
-      final spread = 0.15 + (layer * 0.10);
-      final speedFactor = (10 + (layer * 2)) * sailingIntensity;
+      final spread = (0.15 + (layer * 0.10)) * scale;
+      final speedFactor = (15 + (layer * 3)) * sailingIntensity;
       for (final side in [-1, 1]) {
         final path = Path();
-        path.moveTo(cx * (1.0 + side * 0.03), startY);
+        path.moveTo(cx * (1.0 + side * 0.03 * scale), startY);
         for (double t = 0; t <= 1.0; t += 0.05) {
           final xBase = cx + (side * (cx * 0.03 + t * size.width * spread));
           final yBase = startY + t * (endY - startY);
           final waveOffset =
-              math.sin(t * 26 + animationValue * speedFactor * math.pi + layer) * 6;
+              math.sin(t * 26 + animationValue * speedFactor * math.pi + layer) * 6 * scale;
           path.lineTo(xBase + (waveOffset * side), yBase);
         }
         canvas.drawPath(
@@ -638,16 +639,17 @@ class VoyageLandscapePainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
     for (int i = 0; i < 15; i++) {
-      final t = (animationValue * sailingIntensity * 5.0 + i / 15.0) % 1.0;
+      final t = (animationValue * sailingIntensity * 7.5 + i / 15.0) % 1.0;
       final x = (size.width * (i / 15.0) + math.sin(t * 5) * 40) % size.width;
       final y = horizonY + (t * t) * (size.height - horizonY);
       final opacity = (1.0 - (t - 0.5).abs() * 2.0) * 0.08 * sailingIntensity; // Reduced from 0.12
-      if (opacity > 0)
+      if (opacity > 0) {
         canvas.drawCircle(
           Offset(x, y),
           1.0 + t * 2.2,
           highlightPaint..color = Colors.white.withValues(alpha: opacity.clamp(0, 1)),
         );
+      }
     }
   }
 

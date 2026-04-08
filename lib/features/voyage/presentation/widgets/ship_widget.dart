@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 
 class ShipWidget extends StatefulWidget {
   final bool isRunning;
+  final double progress;
   final VoidCallback? onTap;
 
   const ShipWidget({
     super.key,
     required this.isRunning,
+    required this.progress,
     this.onTap,
   });
 
@@ -23,7 +25,7 @@ class _ShipWidgetState extends State<ShipWidget> with SingleTickerProviderStateM
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(milliseconds: 2200),
     )..repeat(reverse: true);
   }
 
@@ -46,30 +48,38 @@ class _ShipWidgetState extends State<ShipWidget> with SingleTickerProviderStateM
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final bobbingOffset = _controller.value * 8.0;
-        final rotation = math.sin(_controller.value * math.pi) * 0.02;
+        // Perspective Math: Touch the horizon line exactly at 100% progress
+        final scale = 1.0 - (widget.progress * 0.75); 
+        final yPerspectiveOffset = -360.0 * widget.progress; 
+        
+        // Bobbing gets more subtle in the distance
+        final bobbingOffset = (_controller.value * 8.0) * scale;
+        final rotation = (math.sin(_controller.value * math.pi) * 0.02) * scale;
 
         return Stack(
           children: [
-            // ── The Interactable Ship ──
+            // ── The perspective Ship (Sailing to the Horizon) ──
             Center(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: () {
-                  if (widget.isRunning) {
-                    widget.onTap?.call();
-                  }
-                },
-                child: Transform.translate(
-                  offset: Offset(0, 100 + bobbingOffset),
-                  child: Transform.rotate(
-                    angle: rotation,
-                    child: SizedBox(
-                      width: 320,
-                      height: 320,
-                      child: Image.asset(
-                        'assets/voyage/ship.png',
-                        fit: BoxFit.contain,
+              child: Transform.translate(
+                offset: Offset(0, 320 + yPerspectiveOffset + bobbingOffset),
+                child: Transform.scale(
+                  scale: scale,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: () {
+                      if (widget.isRunning) {
+                        widget.onTap?.call();
+                      }
+                    },
+                    child: Transform.rotate(
+                      angle: rotation,
+                      child: SizedBox(
+                        width: 320,
+                        height: 320,
+                        child: Image.asset(
+                          'assets/voyage/ship.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
                   ),

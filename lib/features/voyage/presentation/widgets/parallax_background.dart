@@ -24,10 +24,10 @@ class _ParallaxBackgroundState extends State<ParallaxBackground>
   @override
   void initState() {
     super.initState();
-    // Persistent time loop (the base cycle)
+    // Persistent time loop (the base cycle) - Balanced 10s loop
     _timeController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 20),
+      duration: const Duration(seconds: 10),
     )..repeat();
 
     // Cruise ramp (handles starting/stopping slowly)
