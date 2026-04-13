@@ -21,7 +21,7 @@ class VoyageLandscapePainter extends CustomPainter {
 
     // ── 0. SHIP ANCHORING (Synchronized with ShipWidget) ──────────
     final shipScale = 1.0 - (progress * 0.75);
-    final currentShipY = size.height / 2 + 320 - (360 * progress);
+    final currentShipY = size.height / 2 + 200 - (320 * progress);
 
     // ── 1. ANIMATED ROLLING HORIZON (Moodier Backdrop) ─────────────────────────
     final waterPath = Path();

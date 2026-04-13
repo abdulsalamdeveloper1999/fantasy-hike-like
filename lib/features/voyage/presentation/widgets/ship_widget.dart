@@ -17,7 +17,8 @@ class ShipWidget extends StatefulWidget {
   State<ShipWidget> createState() => _ShipWidgetState();
 }
 
-class _ShipWidgetState extends State<ShipWidget> with SingleTickerProviderStateMixin {
+class _ShipWidgetState extends State<ShipWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -49,11 +50,11 @@ class _ShipWidgetState extends State<ShipWidget> with SingleTickerProviderStateM
       animation: _controller,
       builder: (context, child) {
         // Perspective Math: Touch the horizon line exactly at 100% progress
-        final scale = 1.0 - (widget.progress * 0.75); 
-        final yPerspectiveOffset = -360.0 * widget.progress; 
-        
+        final scale = 1.0 - (widget.progress * 0.75);
+        final yPerspectiveOffset = -320.0 * widget.progress;
+
         // Bobbing gets more subtle in the distance
-        final bobbingOffset = (_controller.value * 8.0) * scale;
+        final bobbingOffset = (_controller.value * 12.0) * scale;
         final rotation = (math.sin(_controller.value * math.pi) * 0.02) * scale;
 
         return Stack(
@@ -61,7 +62,7 @@ class _ShipWidgetState extends State<ShipWidget> with SingleTickerProviderStateM
             // ── The perspective Ship (Sailing to the Horizon) ──
             Center(
               child: Transform.translate(
-                offset: Offset(0, 320 + yPerspectiveOffset + bobbingOffset),
+                offset: Offset(0, 200 + yPerspectiveOffset + bobbingOffset),
                 child: Transform.scale(
                   scale: scale,
                   child: GestureDetector(
@@ -74,8 +75,8 @@ class _ShipWidgetState extends State<ShipWidget> with SingleTickerProviderStateM
                     child: Transform.rotate(
                       angle: rotation,
                       child: SizedBox(
-                        width: 320,
-                        height: 320,
+                        width: 480,
+                        height: 480,
                         child: Image.asset(
                           'assets/voyage/ship.png',
                           fit: BoxFit.contain,

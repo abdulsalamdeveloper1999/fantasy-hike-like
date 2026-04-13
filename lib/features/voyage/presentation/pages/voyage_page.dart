@@ -84,28 +84,69 @@ class VoyageView extends StatelessWidget {
                 isRunning: isStarted,
               ),
 
-              // 2. The Ship (Now Interacted & Perspective Driven)
+
+              // 4. The Ship (Perspective Driven)
               ShipWidget(
                 isRunning: isStarted,
                 progress: state.progress,
                 onTap: () => _showStopConfirmation(context),
               ),
 
-              // 3. UI Overlays (Timer, Goal)
+              // 5. UI Overlays (Timer, Goal)
               const TimerOverlay(),
 
-              // 4. Slide Button (Bottom)
-              Positioned(
-                left: 24,
-                right: 24,
-                bottom: 60,
-                child: SlideToFocusButton(
-                  isStarted: isStarted,
-                  onSlideComplete: () {
-                    context.read<VoyageCubit>().startVoyage();
-                  },
+              // 6. Slide Button (Bottom) - RESTORED
+              if (state.status == VoyageStatus.initial)
+                Positioned(
+                  left: 24,
+                  right: 24,
+                  bottom: 60,
+                  child: SlideToFocusButton(
+                    isStarted: false,
+                    onSlideComplete: () {
+                      context.read<VoyageCubit>().startVoyage();
+                    },
+                  ),
                 ),
-              ),
+
+              // 7. Countdown Timer (TOP LAYER)
+              if (state.status == VoyageStatus.countingDown)
+                Positioned(
+                  top:
+                      350, // Slightly lower to not overlap too much with the top card
+                  left: 0,
+                  right: 0,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          return ScaleTransition(
+                            scale: animation,
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
+                          );
+                        },
+                    child: Text(
+                      '${state.countdownValue}',
+                      key: ValueKey('countdown_${state.countdownValue}'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 60, // Decreased as requested
+                        fontWeight: FontWeight.w100,
+                        letterSpacing: -4,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black45,
+                            blurRadius: 30,
+                            offset: Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
             ],
           );
         },

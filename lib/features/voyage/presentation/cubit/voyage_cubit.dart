@@ -8,11 +8,36 @@ class VoyageCubit extends Cubit<VoyageState> {
   VoyageCubit() : super(VoyageState.initial());
 
   void startVoyage() {
-    if (state.status == VoyageStatus.running) return;
+    if (state.status == VoyageStatus.running || state.status == VoyageStatus.countingDown) return;
 
+    if (state.status == VoyageStatus.initial || state.status == VoyageStatus.paused) {
+      if (state.status == VoyageStatus.initial) {
+        // Start countdown only for fresh start
+        emit(state.copyWith(status: VoyageStatus.countingDown, countdownValue: 3));
+        
+        _timer?.cancel();
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (state.countdownValue > 1) {
+            emit(state.copyWith(countdownValue: state.countdownValue - 1));
+          } else {
+            timer.cancel();
+            _startActualVoyage();
+          }
+        });
+      } else {
+        // Resume directly if paused
+        _startActualVoyage();
+      }
+    }
+  }
+
+  void _startActualVoyage() {
     emit(state.copyWith(
       status: VoyageStatus.running,
-      voyage: state.voyage.copyWith(startTime: DateTime.now()),
+      countdownValue: 0,
+      voyage: state.voyage.startTime == null 
+          ? state.voyage.copyWith(startTime: DateTime.now())
+          : state.voyage,
     ));
 
     _timer?.cancel();
@@ -23,7 +48,6 @@ class VoyageCubit extends Cubit<VoyageState> {
       } else {
         final newRemaining = state.remainingDuration - const Duration(seconds: 1);
         final elapsedSeconds = (state.voyage.totalDurationMinutes * 60) - newRemaining.inSeconds;
-        // 1 minute = 1 km -> 1 second = 1/60 km
         final newDistance = elapsedSeconds / 60.0;
 
         emit(state.copyWith(
@@ -40,7 +64,7 @@ class VoyageCubit extends Cubit<VoyageState> {
   }
 
   void resumeVoyage() {
-    startVoyage();
+    _startActualVoyage();
   }
 
   void resetVoyage() {
